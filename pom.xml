@@ -1,52 +1,128 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <groupId>com.aeris.bot</groupId>
   <artifactId>aeris-dvoretsky</artifactId>
   <packaging>jar</packaging>
   <version>1.0-SNAPSHOT</version>
   <name>aeris-dvoretsky</name>
   <url>http://maven.apache.org</url>
+
+  <!-- Версии зависимостей -->
   <properties>
     <java.version>17</java.version>
     <spring-boot.version>3.1.0</spring-boot.version>
+    <spring-boot-starter.version>3.1.0</spring-boot-starter.version>
+    <spring-boot-starter-web.version>3.1.0</spring-boot-starter-web.version>
+    <spring-boot-starter-data-redis.version>3.1.0</spring-boot-starter-data-redis.version>
+    <spring-boot-starter-data-jpa.version>3.1.0</spring-boot-starter-data-jpa.version>
+    <telegram-bots-spring-boot-starter.version>6.9.7.1</telegram-bots-spring-boot-starter.version>
+    <postgresql.version>42.6.0</postgresql.version>
+    <spring-boot-starter-test.version>3.1.0</spring-boot-starter-test.version> <!-- Версия для тестирования -->
+    <junit.jupiter.version>5.8.2</junit.jupiter.version> <!-- Версия JUnit 5 -->
+    <mockito.version>5.4.0</mockito.version> <!-- Обновлена версия Mockito -->
   </properties>
+
   <dependencies>
     <!-- Spring Boot Starter -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter</artifactId>
+      <version>${spring-boot-starter.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+      <version>${spring-boot-starter-web.version}</version>
     </dependency>
+
     <!-- Telegram Bot API -->
     <dependency>
       <groupId>org.telegram</groupId>
       <artifactId>telegrambots-spring-boot-starter</artifactId>
-      <version>6.9.7.1</version>
+      <version>${telegram-bots-spring-boot-starter.version}</version>
     </dependency>
+
     <!-- Redis -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-redis</artifactId>
+      <version>${spring-boot-starter-data-redis.version}</version>
     </dependency>
+
     <!-- PostgreSQL -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <version>${spring-boot-starter-data-jpa.version}</version>
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
+      <version>${postgresql.version}</version>
     </dependency>
+
+    <!-- JUnit 5 для тестирования -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Mockito для мокирования зависимостей в тестах -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Mockito-JUnit5 интеграция -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
+
   <build>
     <plugins>
+      <!-- Spring Boot Maven Plugin -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <version>${spring-boot.version}</version>
+      </plugin>
+
+      <!-- Maven Surefire Plugin для тестов -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.0.0-M5</version>
+        <configuration>
+          <includes>
+            <include>**/*Tests.java</include>
+            <include>**/*Test.java</include>
+          </includes>
+        </configuration>
       </plugin>
     </plugins>
   </build>

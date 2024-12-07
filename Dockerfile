@@ -1,4 +1,11 @@
-FROM ubuntu:latest
-LABEL authors="michaelwelly"
+# Используем базовый образ OpenJDK
+FROM openjdk:17-jdk-slim
 
-ENTRYPOINT ["top", "-b"]
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем файл сборки
+COPY target/aeris-dvoretsky.jar app.jar
+
+# Устанавливаем точку входа
+ENTRYPOINT ["java", "-jar", "app.jar"]

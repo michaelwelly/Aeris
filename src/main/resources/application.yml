@@ -16,3 +16,13 @@ logging:
   level:
     root: INFO
     com.aeris.bot: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  metrics:
+    export:
+      prometheus:
+        enabled: true
