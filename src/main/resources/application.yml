@@ -1,28 +1,35 @@
-telegram:
-  bot:
-    username: "AerisBot"
-    token: "ВАШ_ТОКЕН"
-
 spring:
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml  # Убедитесь, что путь к вашему changelog правильный
   datasource:
-    url: jdbc:postgresql://localhost:5432/aerisdb
+    url: jdbc:postgresql://localhost:5432/aerisdb  # Параметры для подключения к базе данных
     username: postgres
     password: password
-  redis:
-    host: localhost
-    port: 6379
+  # Прочее логирование
+  logging:
+    level:
+      root: INFO  # Уровень логирования по умолчанию
+      com.aeris.bot: DEBUG  # Уровень логирования для вашего пакета
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
-logging:
-  level:
-    root: INFO
-    com.aeris.bot: DEBUG
+bot:
+  username: "AerisBot"  # Имя бота для Telegram
+  token: "ВАШ_ТОКЕН"  # Токен вашего бота (обязательно храните его в безопасном месте)
+
+openai:
+  api-key: "ВАШ_API_КЛЮЧ"  # Ваш API-ключ для OpenAI
+  endpoint: "https://api.openai.com/v1/chat/completions"  # Эндпоинт для общения с OpenAI API
 
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: "*"  # Открыть все эндпоинты для мониторинга
   metrics:
     export:
       prometheus:
-        enabled: true
+        enabled: true  # Включаем экспорт метрик в Prometheus
+

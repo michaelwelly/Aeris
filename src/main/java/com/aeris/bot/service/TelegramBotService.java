@@ -9,8 +9,16 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 @Service
 public class TelegramBotService extends TelegramLongPollingBot {
 
-    private final String botUsername = "AerisBot";
-    private final String botToken = "ВАШ_ТОКЕН";
+    private final String botUsername = "aeris_dvorestsky_bot";
+    private final String botToken = "7663104943:AAHY3xrVMMcEBJWeeoQ3YefmvchTK1sPmIU";
+
+    private final OpenAIService openAIService;
+    private final UserService userService;
+
+    public TelegramBotService(OpenAIService openAIService, UserService userService) {
+        this.openAIService = openAIService;
+        this.userService = userService;
+    }
 
     @Override
     public String getBotUsername() {
@@ -28,9 +36,27 @@ public class TelegramBotService extends TelegramLongPollingBot {
             String messageText = update.getMessage().getText();
             String chatId = update.getMessage().getChatId().toString();
 
+            String response;
+            // Обработка команды /start
+            if (messageText.equalsIgnoreCase("/start")) {
+                org.telegram.telegrambots.meta.api.objects.User user = update.getMessage().getFrom();
+                try {
+                    userService.registerUser(user.getFirstName(), user.getLastName(), user.getId().toString());  // Сохранение пользователя
+                    response = "Добро пожаловать! Теперь вы можете задать вопрос, используя команду /ask.";
+                } catch (RuntimeException e) {
+                    response = "Пользователь уже зарегистрирован.";
+                }
+            } else if (messageText.startsWith("/ask")) {
+                String userQuery = messageText.replace("/ask", "").trim();
+                response = openAIService.getResponse(userQuery);
+            } else {
+                response = "Неизвестная команда. Используйте /ask для вопросов.";
+            }
+
+            // Отправляем сообщение пользователю
             SendMessage message = new SendMessage();
             message.setChatId(chatId);
-            message.setText("Привет! Вы написали: " + messageText);
+            message.setText(response);
 
             try {
                 execute(message);

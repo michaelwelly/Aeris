@@ -18,6 +18,15 @@ services:
       - ./logs:/app/logs
     networks:
       - aeris_network
+    postgres:
+      image: postgres:latest
+      container_name: aeris_postgres
+      environment:
+        POSTGRES_DB: aerisdb
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: password
+      ports:
+        - "5432:5432"
 
   redis:
     image: redis:latest
