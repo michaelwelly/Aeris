@@ -2,6 +2,7 @@ telegram:
   bot:
     username: "AerisBot"
     token: "ВАШ_ТОКЕН"
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/aerisdb
@@ -10,3 +11,8 @@ spring:
   redis:
     host: localhost
     port: 6379
+
+logging:
+  level:
+    root: INFO
+    com.aeris.bot: DEBUG

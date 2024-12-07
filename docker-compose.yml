@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   aeris-bot:
-    build: .
+    build: aeris-dvoretsky
     container_name: aeris_bot
     ports:
       - "8080:8080"
