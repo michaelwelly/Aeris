@@ -1,5 +1,6 @@
 package com.aeris.bot.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -9,8 +10,11 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 @Service
 public class TelegramBotService extends TelegramLongPollingBot {
 
-    private final String botUsername = "aeris_dvorestsky_bot";
-    private final String botToken = "7663104943:AAHY3xrVMMcEBJWeeoQ3YefmvchTK1sPmIU";
+    @Value("${bot.username}")
+    private String botUsername;
+
+    @Value("${bot.token}")
+    private String botToken;
 
     private final OpenAIService openAIService;
     private final UserService userService;
@@ -41,7 +45,14 @@ public class TelegramBotService extends TelegramLongPollingBot {
             if (messageText.equalsIgnoreCase("/start")) {
                 org.telegram.telegrambots.meta.api.objects.User user = update.getMessage().getFrom();
                 try {
-                    userService.registerUser(user.getFirstName(), user.getLastName(), user.getId().toString());  // Сохранение пользователя
+                    // Регистрация пользователя
+                    userService.registerUser(
+                            user.getFirstName(),
+                            user.getLastName(),
+                            user.getId().toString(),
+                            user.getUserName(),
+                            user.getLanguageCode()
+                    );
                     response = "Добро пожаловать! Теперь вы можете задать вопрос, используя команду /ask.";
                 } catch (RuntimeException e) {
                     response = "Пользователь уже зарегистрирован.";

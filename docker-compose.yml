@@ -1,50 +1,41 @@
 version: '3.8'
 services:
-  aeris-bot:
-    build: .
-    container_name: aeris_bot
+#  aeris-bot:
+#    build: .
+#    container_name: aeris_bot
+#    environment:
+#      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+#      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+#      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+#      - SPRING_REDIS_HOST=${SPRING_REDIS_HOST}
+#      - SPRING_REDIS_PORT=${SPRING_REDIS_PORT}
+#    ports:
+#      - "8080:8080"
+#    depends_on:
+#      - redis
+#      - postgres
+#    volumes:
+#      - ./logs:/app/logs
+#    networks:
+#      - aeris_network
+
+  postgres:
+    image: postgres:latest
+    container_name: aeris_postgres
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/aerisdb
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "8080:8080"
-    depends_on:
-      - redis
-      - postgres
-    volumes:
-      - ./logs:/app/logs
+      - "5432:5432"
     networks:
       - aeris_network
-    postgres:
-      image: postgres:latest
-      container_name: aeris_postgres
-      environment:
-        POSTGRES_DB: aerisdb
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: password
-      ports:
-        - "5432:5432"
 
   redis:
     image: redis:latest
     container_name: aeris_redis
     ports:
       - "6379:6379"
-    networks:
-      - aeris_network
-
-  postgres:
-    image: postgres:latest
-    container_name: aeris_postgres
-    environment:
-      POSTGRES_DB: aerisdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
     networks:
       - aeris_network
 

@@ -1,27 +1,27 @@
 spring:
   liquibase:
-    change-log: classpath:db/changelog/db.changelog-master.yaml  # Убедитесь, что путь к вашему changelog правильный
+    change-log: classpath:db/changelog/db.changelog-master.yaml  # Путь к вашему changelog
   datasource:
-    url: jdbc:postgresql://localhost:5432/aerisdb  # Параметры для подключения к базе данных
-    username: postgres
-    password: password
-  # Прочее логирование
+    url: ${DB_URL}  # Переменная окружения для URL базы данных
+    username: ${DB_USERNAME}  # Переменная окружения для имени пользователя
+    password: ${DB_PASSWORD}  # Переменная окружения для пароля
   logging:
     level:
       root: INFO  # Уровень логирования по умолчанию
       com.aeris.bot: DEBUG  # Уровень логирования для вашего пакета
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
 
 bot:
-  username: "AerisBot"  # Имя бота для Telegram
-  token: "ВАШ_ТОКЕН"  # Токен вашего бота (обязательно храните его в безопасном месте)
+  username: ${TELEGRAM_BOT_USERNAME}  # Имя бота для Telegram
+  token: ${TELEGRAM_BOT_TOKEN}  # Токен вашего бота
 
 openai:
-  api-key: "ВАШ_API_КЛЮЧ"  # Ваш API-ключ для OpenAI
-  endpoint: "https://api.openai.com/v1/chat/completions"  # Эндпоинт для общения с OpenAI API
+  api-key: ${OPENAI_API_KEY}  # Используем переменную из .env для API-ключа
+  endpoint: ${OPENAI_API_ENDPOINT}  # Эндпоинт для общения с OpenAI API
 
 management:
   endpoints:
@@ -32,4 +32,3 @@ management:
     export:
       prometheus:
         enabled: true  # Включаем экспорт метрик в Prometheus
-
