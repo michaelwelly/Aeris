@@ -1,0 +1,12 @@
+telegram:
+  bot:
+    username: "AerisBot"
+    token: "ВАШ_ТОКЕН"
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aerisdb
+    username: postgres
+    password: password
+  redis:
+    host: localhost
+    port: 6379
