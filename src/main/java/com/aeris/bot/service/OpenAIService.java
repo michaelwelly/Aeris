@@ -10,43 +10,52 @@ import java.io.IOException;
 
 @Service
 public class OpenAIService {
-
-    @Value("${openai.api-key}")
-    private String apiKey;
-
-    @Value("${openai.endpoint}")
-    private String endpoint;
-
-    private final OkHttpClient client = new OkHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    public String getResponse(String userMessage) {
-        RequestBody body = createRequestBody(userMessage);
-
-        Request request = new Request.Builder()
-                .url(endpoint)
-                .header("Authorization", "Bearer " + apiKey)
-                .post(body)
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            if (response.isSuccessful() && response.body() != null) {
-                JsonNode jsonResponse = objectMapper.readTree(response.body().string());
-                return jsonResponse.at("/choices/0/message/content").asText();
-            } else {
-                return "Ошибка получения ответа от ChatGPT.";
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return "Ошибка соединения с OpenAI.";
-        }
-    }
-
-    private RequestBody createRequestBody(String userMessage) {
-        String json = String.format(
-                "{\"model\":\"gpt-3.5-turbo\",\"messages\":[{\"role\":\"user\",\"content\":\"%s\"}]}",
-                userMessage
-        );
-        return RequestBody.create(json, MediaType.parse("application/json"));
-    }
+//
+//    @Value("${openai.api-key}")
+//    private String apiKey;
+//
+//    @Value("${openai.endpoint}")
+//    private String endpoint;
+//
+//    private final OkHttpClient client = new OkHttpClient();
+//    private final ObjectMapper objectMapper = new ObjectMapper();
+//
+//    public String getResponse(String userMessage) {
+//        RequestBody body = createRequestBody(userMessage);
+//
+//        Request request = new Request.Builder()
+//                .url(endpoint)
+//                .header("Authorization", "Bearer " + apiKey)
+//                .post(body)
+//                .build();
+//
+//        try (Response response = client.newCall(request).execute()) {
+//            if (response.isSuccessful() && response.body() != null) {
+//                JsonNode jsonResponse = objectMapper.readTree(response.body().string());
+//                return jsonResponse.at("/choices/0/message/content").asText();
+//            } else {
+//                return "Ошибка получения ответа от ChatGPT.";
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            return "Ошибка соединения с OpenAI.";
+//        }
+//    }
+//
+//    private RequestBody createRequestBody(String userMessage) {
+//        String json = String.format(
+//                "{\"model\":\"gpt-3.5-turbo\",\"messages\":[{\"role\":\"user\",\"content\":\"%s\"}]}",
+//                userMessage
+//        );
+//        return RequestBody.create(json, MediaType.parse("application/json"));
+//    }
+//    public void sendRequest() {
+//        if ("mocked-api-key".equals(apiKey)) {
+//            System.out.println("Mocked OpenAI API interaction.");
+//            return;
+//        }
+//
+//        // Реальная логика для отправки запросов в OpenAI
+//        System.out.println("Sending request to OpenAI with API_KEY: " + apiKey);
+//    }
 }

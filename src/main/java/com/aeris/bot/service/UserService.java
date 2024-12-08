@@ -22,12 +22,15 @@ public class UserService {
         }
         // Сохраняем нового пользователя, используя все поля
         User user = new User(firstName, lastName, telegramId, username, languageCode);
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        System.out.println("User successfully saved: " + savedUser);
+        return savedUser;
     }
 
 
     // Метод для сохранения пользователя с данными из Telegram
     public void saveUser(org.telegram.telegrambots.meta.api.objects.User telegramUser) {
+        System.out.println("Attempting to save user: " + telegramUser.getId());
         // Проверяем, существует ли уже пользователь
         if (userRepository.findByTelegramId(telegramUser.getId().toString()) == null) {
             // Создаем нового пользователя
@@ -37,8 +40,10 @@ public class UserService {
             user.setFirstName(telegramUser.getFirstName());
             user.setLastName(telegramUser.getLastName());
             user.setLanguageCode(telegramUser.getLanguageCode());
-            // Сохраняем пользователя в базе данных
             userRepository.save(user);
+            System.out.println("User successfully saved: " + user);
+        } else {
+            System.out.println("User already exists: " + telegramUser.getId());
         }
     }
     // Дополнительный метод для поиска пользователя по Telegram ID

@@ -2,9 +2,17 @@ databaseChangeLog:
   - changeSet:
       id: 1
       author: aeris-dev
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              schemaName: public
+              tableName: users
       changes:
         - createTable:
             tableName: users
+            schemaName: public
             columns:
               - column:
                   name: id
@@ -45,9 +53,17 @@ databaseChangeLog:
   - changeSet:
       id: 2
       author: aeris-dev
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              schemaName: public
+              tableName: files
       changes:
         - createTable:
             tableName: files
+            schemaName: public
             columns:
               - column:
                   name: id

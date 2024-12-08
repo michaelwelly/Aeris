@@ -1,9 +1,8 @@
-com/aeris/bot/controller/BotController.class
 com/aeris/bot/service/UserService.class
+com/aeris/bot/AerisApplication.class
+com/aeris/bot/model/User.class
 com/aeris/bot/config/TelegramBotConfig.class
 com/aeris/bot/config/RedisConfig.class
 com/aeris/bot/service/TelegramBotService.class
 com/aeris/bot/repository/UserRepository.class
-com/aeris/bot/AerisApplication.class
 com/aeris/bot/service/OpenAIService.class
-com/aeris/bot/model/User.class

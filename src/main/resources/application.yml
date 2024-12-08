@@ -2,22 +2,28 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml  # Путь к вашему changelog
   datasource:
-    url: ${DB_URL}  # Переменная окружения для URL базы данных
-    username: ${DB_USERNAME}  # Переменная окружения для имени пользователя
-    password: ${DB_PASSWORD}  # Переменная окружения для пароля
+    url: jdbc:postgresql://localhost:5432/aerisdb
+    username: postgres
+    password: password # Переменная окружения для пароля
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+     hibernate:
+        format_sql: true
   logging:
     level:
       root: INFO  # Уровень логирования по умолчанию
       com.aeris.bot: DEBUG  # Уровень логирования для вашего пакета
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-      password: ${REDIS_PASSWORD}
+      host: localhost
+      port: 6379
 
 bot:
-  username: ${TELEGRAM_BOT_USERNAME}  # Имя бота для Telegram
-  token: ${TELEGRAM_BOT_TOKEN}  # Токен вашего бота
+  username: aeris_dvorestsky_bot  # Имя бота для Telegram
+  token: 7663104943:AAHY3xrVMMcEBJWeeoQ3YefmvchTK1sPmIU # Токен вашего бота
 
 openai:
   api-key: ${OPENAI_API_KEY}  # Используем переменную из .env для API-ключа

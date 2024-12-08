@@ -1,4 +1,8 @@
 -------------------------------------------------------------------------------
 Test set: com.aeris.bot.UserServiceTest
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.682 s - in com.aeris.bot.UserServiceTest
+Tests run: 2, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.895 s <<< FAILURE! - in com.aeris.bot.UserServiceTest
+com.aeris.bot.UserServiceTest.testRegisterUser  Time elapsed: 0.886 s  <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <Test> but was: <12345>
+	at com.aeris.bot.UserServiceTest.testRegisterUser(UserServiceTest.java:35)
+
