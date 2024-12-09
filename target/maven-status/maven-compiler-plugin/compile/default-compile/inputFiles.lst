@@ -3,12 +3,17 @@
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/config/RedisConfig.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/config/TelegramBotConfig.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/controller/FileController.java
+/Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/controller/MenuCardController.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/controller/UserController.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/model/FileEntity.java
+/Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/model/MenuCard.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/model/User.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/repository/FileRepository.java
+/Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/repository/MenuCardRepository.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/repository/UserRepository.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/service/FileService.java
+/Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/service/MenuCardService.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/service/OpenAIService.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/service/TelegramBotService.java
 /Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/service/UserService.java
+/Users/michaelwelly/IdeaProjects/Aeris/src/main/java/com/aeris/bot/util/loader/MenuCardDataLoader.java

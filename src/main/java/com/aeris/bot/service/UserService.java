@@ -13,40 +13,55 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    // Обновленный метод для регистрации пользователя
+    // Метод для регистрации нового пользователя
     public User registerUser(String firstName, String lastName, String telegramId, String username, String languageCode) {
-        // Проверяем, существует ли уже пользователь с таким telegramId
         User existingUser = userRepository.findByTelegramId(telegramId);
         if (existingUser != null) {
             throw new RuntimeException("User already exists!");
         }
-        // Сохраняем нового пользователя, используя все поля
-        User user = new User(firstName, lastName, telegramId, username, languageCode);
+        User user = new User();
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        user.setTelegramId(telegramId);
+        user.setUsername(username);
+        user.setLanguageCode(languageCode);
+
         User savedUser = userRepository.save(user);
-        System.out.println("User successfully saved: " + savedUser);
+        System.out.println("User successfully registered: " + savedUser);
         return savedUser;
     }
 
-
-    // Метод для сохранения пользователя с данными из Telegram
+    // Метод для сохранения пользователя из Telegram API
     public void saveUser(org.telegram.telegrambots.meta.api.objects.User telegramUser) {
         System.out.println("Attempting to save user: " + telegramUser.getId());
-        // Проверяем, существует ли уже пользователь
-        if (userRepository.findByTelegramId(telegramUser.getId().toString()) == null) {
-            // Создаем нового пользователя
+
+        User existingUser = userRepository.findByTelegramId(telegramUser.getId().toString());
+        if (existingUser == null) {
             User user = new User();
             user.setTelegramId(telegramUser.getId().toString());
-            user.setUsername(telegramUser.getUserName());
             user.setFirstName(telegramUser.getFirstName());
             user.setLastName(telegramUser.getLastName());
+            user.setUsername(telegramUser.getUserName());
             user.setLanguageCode(telegramUser.getLanguageCode());
             userRepository.save(user);
             System.out.println("User successfully saved: " + user);
         } else {
-            System.out.println("User already exists: " + telegramUser.getId());
+            System.out.println("User already exists: " + existingUser);
         }
     }
-    // Дополнительный метод для поиска пользователя по Telegram ID
+
+    // Метод для обновления номера телефона пользователя
+    public void updatePhoneNumber(String telegramId, String phoneNumber) {
+        User user = userRepository.findByTelegramId(telegramId);
+        if (user == null) {
+            throw new RuntimeException("User with telegramId " + telegramId + " does not exist!");
+        }
+        user.setPhoneNumber(phoneNumber);
+        userRepository.save(user);
+        System.out.println("Phone number updated for user: " + user);
+    }
+
+    // Метод для поиска пользователя по Telegram ID
     public User findUserByTelegramId(String telegramId) {
         return userRepository.findByTelegramId(telegramId);
     }

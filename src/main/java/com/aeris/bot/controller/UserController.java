@@ -31,11 +31,28 @@ public class UserController {
         }
     }
 
+    // Сохранение номера телефона пользователя
+    @PatchMapping("/{telegramId}/phone")
+    public ResponseEntity<String> updatePhoneNumber(
+            @PathVariable String telegramId,
+            @RequestParam String phoneNumber) {
+        try {
+            userService.updatePhoneNumber(telegramId, phoneNumber);
+            return ResponseEntity.ok("Phone number updated successfully!");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     // Сохранение данных пользователя из Telegram API
     @PostMapping("/save-from-telegram")
     public ResponseEntity<String> saveUserFromTelegram(@RequestBody org.telegram.telegrambots.meta.api.objects.User telegramUser) {
-        userService.saveUser(telegramUser);
-        return ResponseEntity.ok("User saved successfully from Telegram!");
+        try {
+            userService.saveUser(telegramUser);
+            return ResponseEntity.ok("User saved successfully from Telegram!");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     // Поиск пользователя по Telegram ID

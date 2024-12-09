@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
@@ -15,15 +14,12 @@
   <properties>
     <java.version>17</java.version>
     <spring-boot.version>3.1.0</spring-boot.version>
-    <spring-boot-starter.version>3.1.0</spring-boot-starter.version>
-    <spring-boot-starter-web.version>3.1.0</spring-boot-starter-web.version>
-    <spring-boot-starter-data-redis.version>3.1.0</spring-boot-starter-data-redis.version>
-    <spring-boot-starter-data-jpa.version>3.1.0</spring-boot-starter-data-jpa.version>
-    <telegram-bots-spring-boot-starter.version>6.9.7.1</telegram-bots-spring-boot-starter.version>
     <postgresql.version>42.6.0</postgresql.version>
-    <spring-boot-starter-test.version>3.1.0</spring-boot-starter-test.version> <!-- Версия для тестирования -->
-    <junit.jupiter.version>5.8.2</junit.jupiter.version> <!-- Версия JUnit 5 -->
-    <mockito.version>5.4.0</mockito.version> <!-- Обновлена версия Mockito -->
+    <mockito.version>5.4.0</mockito.version>
+    <lombok.version>1.18.28</lombok.version>
+    <telegram-bots-spring-boot-starter.version>6.9.7.1</telegram-bots-spring-boot-starter.version>
+    <jackson-databind.version>2.15.2</jackson-databind.version>
+    <liquibase-core.version>4.20.0</liquibase-core.version>
   </properties>
 
   <dependencies>
@@ -31,12 +27,26 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter</artifactId>
-      <version>${spring-boot-starter.version}</version>
+      <version>${spring-boot.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
-      <version>${spring-boot-starter-web.version}</version>
+      <version>${spring-boot.version}</version>
+    </dependency>
+
+    <!-- Spring Data JPA -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <version>${spring-boot.version}</version>
+    </dependency>
+
+    <!-- PostgreSQL -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${postgresql.version}</version>
     </dependency>
 
     <!-- Telegram Bot API -->
@@ -46,82 +56,77 @@
       <version>${telegram-bots-spring-boot-starter.version}</version>
     </dependency>
 
-    <!-- Redis -->
+    <!-- Liquibase -->
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-redis</artifactId>
-      <version>${spring-boot-starter-data-redis.version}</version>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
+      <version>${liquibase-core.version}</version>
     </dependency>
 
-    <!-- PostgreSQL -->
+    <!-- Lombok -->
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-jpa</artifactId>
-      <version>${spring-boot-starter-data-jpa.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <version>${postgresql.version}</version>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
     </dependency>
 
-    <!-- JUnit 5 для тестирования -->
+    <!-- Jackson -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson-databind.version}</version>
+    </dependency>
+
+    <!-- Spring Test -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <version>6.0.9</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- JUnit 5 -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit.jupiter.version}</version>
+      <version>5.10.0</version> <!-- Убедитесь, что версия совпадает с поддерживаемой Spring Boot -->
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit.jupiter.version}</version>
+      <version>5.10.0</version> <!-- Убедитесь, что версия совпадает с поддерживаемой Spring Boot -->
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <version>${junit.jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- Mockito для мокирования зависимостей в тестах -->
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <version>${mockito.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- Mockito-JUnit5 интеграция -->
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
-      <version>${mockito.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.squareup.okhttp3</groupId>
-      <artifactId>okhttp</artifactId>
-      <version>4.10.0</version>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>2.15.2</version>
-    </dependency>
-    <dependency>
-      <groupId>org.liquibase</groupId>
-      <artifactId>liquibase-core</artifactId>
-      <version>4.20.0</version>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+      <version>${spring-boot.version}</version>
     </dependency>
     <dependency>
       <groupId>io.github.cdimascio</groupId>
       <artifactId>java-dotenv</artifactId>
       <version>5.2.2</version>
     </dependency>
-
-
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>okhttp</artifactId>
+      <version>4.10.0</version>
+    </dependency>
+    <!-- Mockito -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -133,16 +138,13 @@
         <version>${spring-boot.version}</version>
       </plugin>
 
-      <!-- Maven Surefire Plugin для тестов -->
+      <!-- Maven Compiler Plugin -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M5</version>
+        <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <includes>
-            <include>**/*Tests.java</include>
-            <include>**/*Test.java</include>
-          </includes>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
         </configuration>
       </plugin>
     </plugins>
