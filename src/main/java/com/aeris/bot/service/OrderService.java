@@ -15,41 +15,71 @@ import java.util.List;
 @Service
 public class OrderService {
 
-    private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final RestaurantTableRepository restaurantTableRepository;
+    private final OrderRepository orderRepository;
+    private final SlotAvailabilityService slotAvailabilityService;
 
-    public OrderService(OrderRepository orderRepository,
-                        UserRepository userRepository,
-                        RestaurantTableRepository restaurantTableRepository) {
-        this.orderRepository = orderRepository;
+    public OrderService(UserRepository userRepository,
+                        RestaurantTableRepository restaurantTableRepository,
+                        OrderRepository orderRepository,
+                        SlotAvailabilityService slotAvailabilityService) {
         this.userRepository = userRepository;
         this.restaurantTableRepository = restaurantTableRepository;
+        this.orderRepository = orderRepository;
+        this.slotAvailabilityService = slotAvailabilityService;
     }
 
+
     /**
-     * Создаёт новый заказ.
+     * Создаёт новый заказ и сохраняет его.
      */
     public Order createOrder(Long userId, Long tableId, LocalDateTime bookingDateTime, String comment) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + userId));
-
-        RestaurantTable table = restaurantTableRepository.findById(tableId)
-                .orElseThrow(() -> new EntityNotFoundException("Table not found with ID: " + tableId));
-
-        // Проверяем доступность стола
-        if (!isTableAvailable(tableId, bookingDateTime)) {
-            throw new IllegalStateException("Table is not available at the specified time.");
+        // Здесь уже используется метод проверки доступности
+        if (!slotAvailabilityService.isSlotAvailable(tableId, bookingDateTime.toLocalDate(), bookingDateTime.toLocalTime())) {
+            throw new IllegalStateException("Slot is not available");
         }
 
         Order order = new Order();
-        order.setUser(user);
-        order.setTable(table);
+        order.setUser(userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found")));
+        order.setTable(restaurantTableRepository.findById(tableId).orElseThrow(() -> new EntityNotFoundException("Table not found")));
         order.setBookingDateTime(bookingDateTime);
         order.setStatus("PENDING");
         order.setComment(comment);
 
-        return orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+        slotAvailabilityService.reserveSlot(savedOrder, bookingDateTime.toLocalDate(), bookingDateTime.toLocalTime());
+        return savedOrder;
+    }
+
+    /**
+     * Отменяет заказ.
+     */
+    public void cancelOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found with ID: " + orderId));
+
+        // Обновляем статус заказа
+        order.setStatus("CANCELLED");
+        orderRepository.save(order);
+
+        // Освобождаем зарезервированные слоты
+        slotAvailabilityService.releaseSlot(order);
+    }
+
+    /**
+     * Получение заказов за определённый период.
+     */
+    public List<Order> getOrdersForPeriod(LocalDateTime startDateTime, LocalDateTime endDateTime) {
+        return orderRepository.findOrdersByDateRange(startDateTime, endDateTime);
+    }
+
+    /**
+     * Получение заказов пользователя.
+     */
+    public List<Order> getOrdersByUser(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
+        return orderRepository.findByUser(user);
     }
 
     /**
@@ -120,5 +150,62 @@ public class OrderService {
     public boolean isTableAvailable(Long tableId, LocalDateTime bookingDateTime) {
         List<Order> orders = orderRepository.findByTableIdAndBookingDateTime(tableId, bookingDateTime);
         return orders.isEmpty();
+    }
+    /**
+     * Обновляет дату заказа.
+     */
+    public Order updateOrderDate(Long orderId, LocalDateTime newDate) {
+        Order order = getOrderById(orderId);
+        order.setBookingDateTime(newDate);
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Обновляет зону заказа.
+     */
+    public Order updateOrderZone(Long orderId, String newZone) {
+        Order order = getOrderById(orderId);
+        RestaurantTable table = restaurantTableRepository.findByZone(newZone)
+                .orElseThrow(() -> new EntityNotFoundException("Zone not found: " + newZone));
+        order.setTable(table);
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Обновляет стол заказа.
+     */
+    public Order updateOrderTable(Long orderId, Long newTableId) {
+        Order order = getOrderById(orderId);
+        RestaurantTable table = restaurantTableRepository.findById(newTableId)
+                .orElseThrow(() -> new EntityNotFoundException("Table not found: " + newTableId));
+        order.setTable(table);
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Обновляет временной слот заказа.
+     */
+    public Order updateOrderSlot(Long orderId, LocalDateTime newSlot) {
+        Order order = getOrderById(orderId);
+        if (!slotAvailabilityService.isSlotAvailable(order.getTable().getId(), newSlot.toLocalDate(), newSlot.toLocalTime())) {
+            throw new IllegalStateException("Slot is not available");
+        }
+        order.setBookingDateTime(newSlot);
+        slotAvailabilityService.reserveSlot(order, newSlot.toLocalDate(), newSlot.toLocalTime());
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Получает дату и время заказа.
+     */
+    public LocalDateTime getOrderDateTime(Long orderId) {
+        return getOrderById(orderId).getBookingDateTime();
+    }
+
+    /**
+     * Получает зону стола заказа.
+     */
+    public String getOrderZone(Long orderId) {
+        return getOrderById(orderId).getTable().getZone();
     }
 }
