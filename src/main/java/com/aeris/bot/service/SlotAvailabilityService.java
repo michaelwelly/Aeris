@@ -55,9 +55,7 @@ public class SlotAvailabilityService {
      * Проверка доступности слота.
      */
     public boolean isSlotAvailable(Long tableId, LocalDate date, LocalTime timeSlot) {
-        return slotAvailabilityRepository.findByTableIdAndDateAndTimeSlot(tableId, date, timeSlot)
-                .map(slot -> slot.getStatus().equals(SlotStatus.AVAILABLE))
-                .orElse(false); // Если слот не найден, он недоступен
+        return slotAvailabilityRepository.existsByTableIdAndDateAndTimeSlot(tableId, date, timeSlot);
     }
     /**
      * Получение доступных слотов на дату.

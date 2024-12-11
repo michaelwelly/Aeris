@@ -1594,7 +1594,4 @@ public class TelegramBotService extends TelegramLongPollingBot {
             sendMessage(chatId, "Неверный формат даты и времени. Введите в формате: yyyy-MM-ddTHH:mm.");
         }
     }
-
-
-
 }
