@@ -54,7 +54,6 @@ databaseChangeLog:
                   name: created_at
                   type: TIMESTAMP
                   defaultValueComputed: CURRENT_TIMESTAMP
-
   - changeSet:
       id: 2
       author: aeris-dev
@@ -64,10 +63,10 @@ databaseChangeLog:
         - not:
             tableExists:
               schemaName: public
-              tableName: menu_cards
+              tableName: tables
       changes:
         - createTable:
-            tableName: menu_cards
+            tableName: tables
             columns:
               - column:
                   name: id
@@ -76,17 +75,77 @@ databaseChangeLog:
                   constraints:
                     primaryKey: true
               - column:
-                  name: name
-                  type: VARCHAR(255)
+                  name: zone
+                  type: VARCHAR(50)
                   constraints:
                     nullable: false
               - column:
-                  name: description
+                  name: table_number
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: capacity
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: available
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+  - changeSet:
+      id: 3
+      author: aeris-dev
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              schemaName: public
+              tableName: orders
+      changes:
+        - createTable:
+            tableName: orders
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_orders_users
+                    references: users(id)
+              - column:
+                  name: table_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_orders_tables
+                    references: tables(id)
+              - column:
+                  name: booking_date_time
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+                    check: status IN ('PENDING', 'CONFIRMED', 'CANCELLED')
+              - column:
+                  name: comment
                   type: TEXT
                   constraints:
-                    nullable: false
+                    nullable: true
               - column:
-                  name: file_path
-                  type: VARCHAR(255)
-                  constraints:
-                    nullable: false
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP

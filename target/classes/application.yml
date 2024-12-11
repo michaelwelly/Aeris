@@ -38,3 +38,6 @@ management:
     export:
       prometheus:
         enabled: true  # Включаем экспорт метрик в Prometheus
+hostess:
+  chat:
+    id=123456789:
