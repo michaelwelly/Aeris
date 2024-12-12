@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
+
+import java.util.UUID;
 
 @Entity
 @Table(name = "tables")
@@ -13,8 +16,13 @@ import lombok.NoArgsConstructor;
 public class RestaurantTable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(
+            name = "UUID",
+            strategy = "org.hibernate.id.UUIDGenerator"
+    )
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
 
     @Column(name = "zone", nullable = false)
     private String zone; // Зона, например, "бар", "основной зал"
@@ -29,55 +37,5 @@ public class RestaurantTable {
     private String description; // Дополнительное описание (опционально)
 
     @Column(name = "available", nullable = false)
-    private Boolean available = true; // Доступность столика (по умолчанию - доступен)
-
-    // Геттеры
-    public Long getId() {
-        return id;
-    }
-
-    public String getZone() {
-        return zone;
-    }
-
-    public Integer getTableNumber() {
-        return tableNumber;
-    }
-
-    public Integer getCapacity() {
-        return capacity;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public Boolean getAvailable() {
-        return available;
-    }
-
-    // Сеттеры
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setZone(String zone) {
-        this.zone = zone;
-    }
-
-    public void setTableNumber(Integer tableNumber) {
-        this.tableNumber = tableNumber;
-    }
-
-    public void setCapacity(Integer capacity) {
-        this.capacity = capacity;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public void setAvailable(Boolean available) {
-        this.available = available;
-    }
+    private Boolean available = true; // Доступность столика
 }

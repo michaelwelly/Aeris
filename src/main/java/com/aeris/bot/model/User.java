@@ -4,17 +4,25 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
+
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Data // Автоматически создает геттеры, сеттеры, equals, hashCode и toString
-@NoArgsConstructor // Создает конструктор без аргументов
-@AllArgsConstructor // Создает конструктор с аргументами для всех полей
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(
+            name = "UUID",
+            strategy = "org.hibernate.id.UUIDGenerator"
+    )
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
 
     @Column(name = "telegram_id", unique = true, nullable = false)
     private String telegramId;
@@ -32,5 +40,5 @@ public class User {
     private String languageCode;
 
     @Column(name = "phone_number")
-    private String phoneNumber; // Поле для номера телефона (заполняется позже)
+    private String phoneNumber; // Поле для номера телефона
 }

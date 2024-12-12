@@ -6,6 +6,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class RestaurantTableService {
@@ -19,7 +20,7 @@ public class RestaurantTableService {
     /**
      * Получить стол по ID.
      */
-    public RestaurantTable getTableById(Long id) {
+    public RestaurantTable getTableById(UUID id) {
         return restaurantTableRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Table not found with ID: " + id));
     }
@@ -41,12 +42,14 @@ public class RestaurantTableService {
     /**
      * Удалить стол по ID.
      */
-    public void deleteTable(Long id) {
+    public void deleteTable(UUID id) {
         restaurantTableRepository.deleteById(id);
     }
+
+    /**
+     * Получить доступные столы в указанной зоне.
+     */
     public List<RestaurantTable> getAvailableTablesByZone(String zoneName) {
-        // Предположим, мы ищем доступные столы (available = true)
         return restaurantTableRepository.findByZoneAndAvailable(zoneName, true);
     }
-
 }

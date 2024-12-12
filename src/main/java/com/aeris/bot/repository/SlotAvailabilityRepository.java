@@ -10,14 +10,15 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface SlotAvailabilityRepository extends JpaRepository<SlotAvailability, Long> {
+public interface SlotAvailabilityRepository extends JpaRepository<SlotAvailability, UUID> {
 
-    boolean existsByTableIdAndDateAndTimeSlot(Long tableId, LocalDate date, LocalTime timeSlot);
+    boolean existsByTableIdAndDateAndTimeSlot(UUID tableId, LocalDate date, LocalTime timeSlot);
     List<SlotAvailability> findByDateAndStatus(LocalDate date, String status);
-    List<SlotAvailability> findByDateAndTableId(LocalDate date, Long tableId);
+    List<SlotAvailability> findByDateAndTableId(LocalDate date, UUID tableId);
     List<SlotAvailability> findByDateBetween(LocalDate startDate, LocalDate endDate);
     @Query("SELECT s FROM SlotAvailability s WHERE s.table.id = :tableId AND s.date = :date AND s.timeSlot = :timeSlot")
-    Optional<SlotAvailability> findByTableIdAndDateAndTimeSlot(@Param("tableId") Long tableId, @Param("date") LocalDate date, @Param("timeSlot") LocalTime timeSlot);
+    Optional<SlotAvailability> findByTableIdAndDateAndTimeSlot(@Param("tableId") UUID tableId, @Param("date") LocalDate date, @Param("timeSlot") LocalTime timeSlot);
 }

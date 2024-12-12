@@ -4,8 +4,11 @@ import com.aeris.bot.model.Order;
 import com.aeris.bot.model.RestaurantTable;
 import com.aeris.bot.model.SlotAvailability;
 import com.aeris.bot.model.User;
+import com.aeris.bot.repository.OrderRepository;
 import com.aeris.bot.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -34,6 +37,7 @@ import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 @Service
 public class TelegramBotService extends TelegramLongPollingBot {
@@ -49,17 +53,21 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final OrderService orderService;
     private final RestaurantTableService restaurantTableService;
     private final SlotAvailabilityService slotAvailabilityService;
+    private final OrderRepository orderRepository;
+    private UserRepository userRepository;
+
+    private static final Logger log = LoggerFactory.getLogger(TelegramBotService.class);
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
-    @Autowired
-    private UserRepository userRepository;
 
-    public TelegramBotService(UserService userService, OrderService orderService, RestaurantTableService restaurantTableService, SlotAvailabilityService slotAvailabilityService) {
+    public TelegramBotService(UserService userService, OrderService orderService, RestaurantTableService restaurantTableService, SlotAvailabilityService slotAvailabilityService, OrderRepository orderRepository, UserRepository userRepository) {
         this.userService = userService;
         this.orderService = orderService;
         this.restaurantTableService = restaurantTableService;
         this.slotAvailabilityService = slotAvailabilityService;
+        this.orderRepository = orderRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -150,10 +158,18 @@ public class TelegramBotService extends TelegramLongPollingBot {
     }
     private void handleCancelBooking(String chatId) {
         try {
-            Long userId = getUserId(chatId);
-            orderService.cancelOrder(userId);
-            sendMessage(chatId, "❌ Ваше бронирование отменено.");
+            // Получаем или создаем идентификатор заказа
+            UUID orderId = getOrCreateOrderId(chatId);
+
+            // Отмена бронирования
+            orderService.cancelOrder(orderId);
+
+            // Уведомление пользователя
+            sendMessage(chatId, "❌ Ваше бронирование успешно отменено.");
             sendMainMenu(chatId, "Вы вернулись в главное меню.");
+        } catch (EntityNotFoundException e) {
+            sendMessage(chatId, "Заказ не найден. Возможно, бронирование уже было отменено.");
+            e.printStackTrace();
         } catch (Exception e) {
             sendMessage(chatId, "Произошла ошибка при отмене бронирования. Попробуйте снова.");
             e.printStackTrace();
@@ -212,12 +228,14 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 break;
 
             case "Выбрать дату":
+                sendDateSelection(chatId);
             case "Выбрать время":
+
             case "Выбрать слот":
             case "Выбрать зону":
             case "Выбрать номер стола":
             case "Отменить бронирование":
-                handleBookingMenuSelection(chatId, messageText);
+//                handleBookingMenuSelection(chatId, messageText);
               break;
 
             case "Меню":
@@ -812,27 +830,10 @@ public class TelegramBotService extends TelegramLongPollingBot {
         KeyboardRow row1 = new KeyboardRow();
         row1.add("Выбрать дату");
 
-        KeyboardRow row2 = new KeyboardRow();
-        row2.add("Выбрать время");
-
-        KeyboardRow row3 = new KeyboardRow();
-        row3.add("Выбрать слот");
-
-        KeyboardRow row4 = new KeyboardRow();
-        row4.add("Выбрать зону");
-        row4.add("Выбрать номер стола");
-
-        KeyboardRow row5 = new KeyboardRow();
-        row5.add("Отменить бронирование"); // Кнопка для отмены бронирования
-
         KeyboardRow row6 = new KeyboardRow();
         row6.add("Главное меню"); // Кнопка возврата в главное меню
 
         keyboard.add(row1);
-        keyboard.add(row2);
-        keyboard.add(row3);
-        keyboard.add(row4);
-        keyboard.add(row5);
         keyboard.add(row6);
 
         replyKeyboardMarkup.setKeyboard(keyboard);
@@ -866,71 +867,81 @@ public class TelegramBotService extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
-    private void handleBookingMenuSelection(String chatId, String bookingMenuSelection) {
-        switch (bookingMenuSelection) {
-            case "Выбрать дату":
-                sendDateSelection(chatId); // Переход к выбору даты
-                break;
-            case "Выбрать время":
-                try {
-                    Long userId = getUserId(chatId);
-                    if (orderService.getOrderDateTime(userId) == null) {
-                        sendMessage(chatId, "Пожалуйста, выберите дату перед выбором времени.");
-                    } else {
-                        sendTimeSelection(chatId, orderService.getOrderDateTime(userId).toLocalDate().toString());
-                    }
-                } catch (Exception e) {
-                    sendMessage(chatId, "Произошла ошибка при обработке выбора времени. Попробуйте снова.");
-                    e.printStackTrace();
-                }
-                break;
-            case "Выбрать слот":
-                try {
-                    Long userId = getUserId(chatId);
-                    LocalDate selectedDate = orderService.getOrderDateTime(userId).toLocalDate();
-                    sendSlotSelection(chatId, selectedDate.toString());
-                } catch (Exception e) {
-                    sendMessage(chatId, "Пожалуйста, выберите дату и время перед выбором слота.");
-                }
-                break;
-            case "Выбрать зону":
-                sendZoneSelection(chatId); // Переход к выбору зоны
-                break;
-            case "Выбрать номер стола":
-                try {
-                    Long userId = getUserId(chatId);
-                    String selectedZone = orderService.getOrderZone(userId);
-                    if (selectedZone == null) {
-                        sendMessage(chatId, "Пожалуйста, выберите зону перед выбором стола.");
-                    } else {
-                        sendTableSelection(chatId, selectedZone); // Переход к выбору номера стола
-                    }
-                } catch (Exception e) {
-                    sendMessage(chatId, "Произошла ошибка при обработке выбора стола. Попробуйте снова.");
-                    e.printStackTrace();
-                }
-                break;
-            case "Отменить бронирование":
-                try {
-                    Long userId = getUserId(chatId);
-                    orderService.cancelOrder(userId);
-                    sendMessage(chatId, "❌ Ваше бронирование отменено. Вы можете начать заново.");
-                } catch (Exception e) {
-                    sendMessage(chatId, "Произошла ошибка при отмене бронирования. Попробуйте снова.");
-                    e.printStackTrace();
-                }
-                break;
-            case "Главное меню":
-                sendMainMenu(chatId, "Вы вернулись в главное меню.");
-                break;
-            default:
-                sendMessage(chatId, "Неизвестная команда. Пожалуйста, выберите из доступных вариантов.");
-        }
-    }
+//    private void handleBookingMenuSelection(String chatId, String bookingMenuSelection) {
+//        try {
+//            UUID orderId = getOrCreateOrderId(chatId); // Получаем или создаем текущий заказ пользователя
+//
+//            switch (bookingMenuSelection) {
+//                case "Выбрать дату":
+//                    sendDateSelection(chatId); // Переход к выбору даты
+//                    break;
+//                case "Выбрать время":
+//                    try {
+//                        LocalDate bookingDate = orderService.getOrderDate(orderId);
+//                        if (bookingDate == null) {
+//                            sendMessage(chatId, "Пожалуйста, выберите дату перед выбором времени.");
+//                        } else {
+//                            sendTimeSelection(chatId, bookingDate.toString());
+//                        }
+//                    } catch (Exception e) {
+//                        log.error("Ошибка при обработке выбора времени: {}", e.getMessage(), e);
+//                        sendMessage(chatId, "Произошла ошибка при обработке выбора времени. Попробуйте снова.");
+//                    }
+//                    break;
+//                case "Выбрать слот":
+//                    try {
+//                        LocalDate bookingDate = orderService.getOrderDate(orderId);
+//                        if (bookingDate == null) {
+//                            sendMessage(chatId, "Пожалуйста, выберите дату перед выбором слота.");
+//                        } else {
+//                            sendSlotSelection(chatId, bookingDate.toString());
+//                        }
+//                    } catch (Exception e) {
+//                        log.error("Ошибка при обработке выбора слота: {}", e.getMessage(), e);
+//                        sendMessage(chatId, "Произошла ошибка при обработке выбора слота. Попробуйте снова.");
+//                    }
+//                    break;
+//                case "Выбрать зону":
+//                    sendZoneSelection(chatId); // Переход к выбору зоны
+//                    break;
+//                case "Выбрать номер стола":
+//                    try {
+//                        String selectedZone = orderService.getOrderZone(orderId);
+//                        if (selectedZone == null) {
+//                            sendMessage(chatId, "Пожалуйста, выберите зону перед выбором стола.");
+//                        } else {
+//                            sendTableSelection(chatId, selectedZone); // Переход к выбору номера стола
+//                        }
+//                    } catch (Exception e) {
+//                        log.error("Ошибка при обработке выбора стола: {}", e.getMessage(), e);
+//                        sendMessage(chatId, "Произошла ошибка при обработке выбора стола. Попробуйте снова.");
+//                    }
+//                    break;
+//                case "Отменить бронирование":
+//                    try {
+//                        orderService.cancelOrder(orderId);
+//                        sendMessage(chatId, "❌ Ваше бронирование отменено. Вы можете начать заново.");
+//                    } catch (Exception e) {
+//                        log.error("Ошибка при отмене бронирования: {}", e.getMessage(), e);
+//                        sendMessage(chatId, "Произошла ошибка при отмене бронирования. Попробуйте снова.");
+//                    }
+//                    break;
+//                case "Главное меню":
+//                    sendMainMenu(chatId, "Вы вернулись в главное меню.");
+//                    break;
+//                default:
+//                    sendMessage(chatId, "Неизвестная команда. Пожалуйста, выберите из доступных вариантов.");
+//            }
+//        } catch (Exception e) {
+//            log.error("Общая ошибка при обработке действия: {}", e.getMessage(), e);
+//            sendMessage(chatId, "Произошла ошибка при обработке действия. Попробуйте снова.");
+//        }
+//    }
     private String capitalizeFirstLetter(String input) {
         if (input == null || input.isEmpty()) return input;
         return input.substring(0, 1).toUpperCase() + input.substring(1).toLowerCase();
     }
+
     private void sendDateSelection(String chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
@@ -1100,116 +1111,157 @@ public class TelegramBotService extends TelegramLongPollingBot {
             sendMessage(chatId, "Произошла ошибка при отображении доступных столов. Попробуйте позже.");
         }
     }
-    private String generateDayDescription(String selectedDate) {
-        LocalDate date = LocalDate.parse(selectedDate);
-        DayOfWeek dayOfWeek = date.getDayOfWeek();
 
-        switch (dayOfWeek) {
-            case MONDAY:
-                return "🌞 Понедельник — день энергии и новых начинаний! Это прекрасное время для планирования ваших достижений.";
-            case TUESDAY:
-                return "🔥 Вторник — день огненной решимости. Солнце приглашает вас к активности и решению задач.";
-            case WEDNESDAY:
-                return "💨 Среда — день гармонии и равновесия. Природа способствует ясности мыслей и принятию решений.";
-            case THURSDAY:
-                return "🌳 Четверг — день роста и процветания. Это идеальное время для новых начинаний и отдыха.";
-            case FRIDAY:
-                return "✨ Пятница — день радости и завершения. Это время насладиться плодами ваших трудов.";
-            case SATURDAY:
-                return "🌙 Суббота — день покоя и медитации. Позвольте себе насладиться простыми радостями жизни.";
-            case SUNDAY:
-                return "🍷 Воскресенье — день созерцания и благодарности. Наполните этот день моментами счастья.";
-            default:
-                return "Сегодня уникальный день, который обещает быть особенным!";
-        }
-    }
     private void handleCallbackQuery(String chatId, String callbackData) {
         try {
-            Long userId = getUserId(chatId); // Получаем ID пользователя
+            UUID orderId = getOrCreateOrderId(chatId); // Получаем или создаем новый заказ для пользователя
 
             if (callbackData.startsWith("select_date:")) {
-                // Выбор даты
-                String selectedDate = callbackData.split(":")[1];
-                orderService.updateOrderDate(userId, LocalDate.parse(selectedDate).atStartOfDay());
-                sendMessage(chatId, "📅 Вы выбрали дату: " + formatSelectedDate(selectedDate) +
-                        ". Теперь выберите удобное время.");
-                sendTimeSelection(chatId, selectedDate);
-
+                handleDateSelection(chatId, callbackData, orderId);
             } else if (callbackData.startsWith("select_time:")) {
-                // Выбор времени
-                String selectedTime = callbackData.split(":")[1];
-                LocalDate selectedDate = LocalDate.parse(orderService.getOrderDateTime(userId).toLocalDate().toString());
-
-                if (selectedDate == null) {
-                    sendMessage(chatId, "Пожалуйста, выберите дату перед выбором времени.");
-                    return;
-                }
-
-                LocalDateTime bookingDateTime = LocalDateTime.of(selectedDate, LocalTime.parse(selectedTime));
-                orderService.updateOrderSlot(userId, bookingDateTime);
-                sendMessage(chatId, "🕒 Вы выбрали время: " + selectedTime +
-                        ". Теперь выберите доступный слот.");
-                sendSlotSelection(chatId, selectedDate.toString());
-
+                handleTimeSelection(chatId, callbackData, orderId);
             } else if (callbackData.startsWith("select_slot:")) {
-                // Выбор слота
-                Long slotId = Long.parseLong(callbackData.split(":")[1]);
-                SlotAvailability slot = slotAvailabilityService.getSlotById(slotId);
-
-                if (!slotAvailabilityService.isSlotAvailable(slot.getId(), slot.getDate(), slot.getTimeSlot())) {
-                    sendMessage(chatId, "Извините, выбранный слот уже занят. Попробуйте другой.");
-                    return;
-                }
-
-                orderService.updateOrderSlot(userId, slot.getDate().atTime(slot.getTimeSlot()));
-                sendMessage(chatId, "✅ Вы успешно забронировали слот на " +
-                        formatDateTimeForUser(slot.getDate().atTime(slot.getTimeSlot())) +
-                        ". Теперь выберите зону.");
-                sendZoneSelection(chatId);
-
+                handleSlotSelection(chatId, callbackData, orderId);
             } else if (callbackData.startsWith("select_zone:")) {
-                // Выбор зоны
-                String selectedZone = callbackData.split(":")[1];
-                orderService.updateOrderZone(userId, selectedZone);
-
-                sendMessage(chatId, "📍 Вы выбрали зону: " + selectedZone +
-                        ". Теперь выберите номер стола.");
-                sendTableSelection(chatId, selectedZone);
-
+                handleZoneSelection(chatId, callbackData, orderId);
             } else if (callbackData.startsWith("select_table:")) {
-                // Выбор номера стола
-                Long tableId = Long.parseLong(callbackData.split(":")[1]);
-                RestaurantTable table = restaurantTableService.getTableById(tableId);
-
-                if (!orderService.isTableAvailable(tableId, orderService.getOrderDateTime(userId))) {
-                    sendMessage(chatId, "К сожалению, выбранный столик занят. Попробуйте другой.");
-                    return;
-                }
-
-                orderService.updateOrderTable(userId, tableId);
-                sendMessage(chatId, "🪑 Вы выбрали столик №" + table.getTableNumber() +
-                        " в зоне \"" + table.getZone() + "\".\n" +
-                        "Ваш заказ успешно создан и отправлен на подтверждение.");
-                confirmOrder(chatId, table.getId(), orderService.getOrderDateTime(userId));
-
+                handleTableSelection(chatId, callbackData, orderId);
             } else if (callbackData.equals("cancel_booking")) {
-                // Отмена бронирования
-                orderService.cancelOrder(userId);
-                sendMessage(chatId, "❌ Ваше бронирование отменено. Вы можете начать заново, выбрав действие в главном меню.");
-                sendMainMenu(chatId, "Вы вернулись в главное меню.");
-
+                cancelBooking(chatId, orderId);
             } else if (callbackData.equals("main_menu")) {
-                // Возврат в главное меню
                 sendMainMenu(chatId, "Вы вернулись в главное меню.");
-
             } else {
                 sendMessage(chatId, "Неизвестное действие. Попробуйте снова.");
             }
+        } catch (IllegalStateException e) {
+            log.error("Ошибка логики: {}", e.getMessage(), e);
+            sendMessage(chatId, "Произошла ошибка: " + e.getMessage());
         } catch (Exception e) {
+            log.error("Общая ошибка: {}", e.getMessage(), e);
             sendMessage(chatId, "Произошла ошибка при обработке действия. Попробуйте снова.");
-            e.printStackTrace();
         }
     }
+    private String extractCallbackValue(String callbackData, String prefix) {
+        if (callbackData.startsWith(prefix)) {
+            return callbackData.split(":")[1];
+        }
+        throw new IllegalArgumentException("Некорректные данные callback: " + callbackData);
+    }
+    private void handleDateSelection(String chatId, String callbackData, UUID orderId) {
+        try {
+            // Извлекаем выбранную дату из callbackData
+            String selectedDate = extractCallbackValue(callbackData, "select_date:");
+            LocalDate bookingDate = LocalDate.parse(selectedDate);
+
+            // Обновляем дату бронирования в заказе
+            orderService.updateOrderDate(orderId, bookingDate);
+            log.info("Дата бронирования установлена: {} для заказа {}", bookingDate, orderId);
+
+            // Отправляем доступные временные слоты
+            sendTimeSelection(chatId, selectedDate);
+
+            // Автоматически вызываем handleTimeSelection после выбора времени пользователем
+            // handleTimeSelection будет вызываться через callbackData "select_time:<date>T<time>"
+        } catch (Exception e) {
+            log.error("Ошибка при выборе даты для пользователя {}: {}", chatId, e.getMessage(), e);
+            sendMessage(chatId, "Ошибка при выборе даты. Попробуйте снова.");
+        }
+    }
+    private void handleTimeSelection(String chatId, String callbackData, UUID userId) {
+        try {
+            String selectedTime = extractCallbackValue(callbackData, "select_time:");
+            LocalTime bookingTime = LocalTime.parse(selectedTime);
+            LocalDate bookingDate = orderService.getOrderDate(userId);
+
+            if (bookingDate == null) {
+                throw new IllegalStateException("Сначала выберите дату.");
+            }
+
+            orderService.updateOrderSlot(userId, bookingDate, bookingTime);
+
+            sendMessage(chatId, "🕒 Вы выбрали время: " + bookingTime + ". Теперь выберите зону.");
+            sendZoneSelection(chatId);
+        } catch (Exception e) {
+            log.error("Ошибка при выборе времени для пользователя {}: {}", chatId, e.getMessage(), e);
+            sendMessage(chatId, "Ошибка при выборе времени. Попробуйте снова.");
+        }
+    }
+    private void handleSlotSelection(String chatId, String callbackData, UUID orderId) {
+        try {
+            // Извлекаем ID слота из callbackData
+            UUID slotId = UUID.fromString(callbackData.split(":")[1]);
+
+            // Получаем информацию о слоте
+            SlotAvailability slot = slotAvailabilityService.getSlotById(slotId);
+
+            // Проверяем доступность слота
+            if (!slotAvailabilityService.isSlotAvailable(slot.getTable().getId(), slot.getDate(), slot.getTimeSlot())) {
+                sendMessage(chatId, "Извините, выбранный слот уже занят. Попробуйте другой.");
+                return;
+            }
+
+            // Обновляем заказ с учетом выбранных даты и времени
+            orderService.updateOrderSlot(orderId, slot.getDate(), slot.getTimeSlot());
+
+            // Логируем успешное обновление
+            log.info("Слот бронирования установлен: {} для заказа {}", slotId, orderId);
+
+            // Уведомляем пользователя
+            sendMessage(chatId, "✅ Вы успешно забронировали слот на " +
+                    formatDateTimeForUser(slot.getDate().atTime(slot.getTimeSlot())) +
+                    ". Теперь выберите зону.");
+
+            // Переходим к выбору зоны
+            sendZoneSelection(chatId);
+        } catch (Exception e) {
+            // Логируем и уведомляем об ошибке
+            log.error("Ошибка при выборе слота для пользователя {}: {}", chatId, e.getMessage(), e);
+            sendMessage(chatId, "Ошибка при выборе слота. Попробуйте снова.");
+        }
+    }
+    private void handleZoneSelection(String chatId, String callbackData, UUID userId) {
+        try {
+            String selectedZone = extractCallbackValue(callbackData, "select_zone:");
+            orderService.updateOrderZone(userId, selectedZone);
+
+            sendMessage(chatId, "📍 Вы выбрали зону: " + selectedZone + ". Теперь выберите номер стола.");
+            sendTableSelection(chatId, selectedZone);
+        } catch (Exception e) {
+            log.error("Ошибка при выборе зоны для пользователя {}: {}", chatId, e.getMessage(), e);
+            sendMessage(chatId, "Ошибка при выборе зоны. Попробуйте снова.");
+        }
+    }
+    private void handleTableSelection(String chatId, String callbackData, UUID userId) {
+        try {
+            UUID tableId = UUID.fromString(extractCallbackValue(callbackData, "select_table:"));
+            RestaurantTable table = restaurantTableService.getTableById(tableId);
+            LocalDate bookingDate = orderService.getOrderDate(userId);
+            LocalTime bookingTime = orderService.getOrderTime(userId);
+
+            if (!orderService.isTableAvailable(tableId, bookingDate, bookingTime)) {
+                sendMessage(chatId, "К сожалению, выбранный столик занят. Попробуйте другой.");
+                return;
+            }
+
+            orderService.updateOrderTable(userId, tableId);
+            sendMessage(chatId, "🪑 Вы выбрали столик №" + table.getTableNumber() +
+                    " (Зона: " + table.getZone() + "). Теперь подтвердите бронирование.");
+        } catch (Exception e) {
+            log.error("Ошибка при выборе стола для пользователя {}: {}", chatId, e.getMessage(), e);
+            sendMessage(chatId, "Ошибка при выборе стола. Попробуйте снова.");
+        }
+    }
+    private void cancelBooking(String chatId, UUID orderId) {
+        try {
+            orderService.cancelOrder(orderId);
+            sendMessage(chatId, "❌ Ваше бронирование отменено. Вы можете начать заново, выбрав действие в главном меню.");
+            sendMainMenu(chatId, "Вы вернулись в главное меню.");
+        } catch (Exception e) {
+            log.error("Ошибка при отмене бронирования: {}", e.getMessage(), e);
+            sendMessage(chatId, "Ошибка при отмене бронирования. Попробуйте снова.");
+        }
+    }
+
     private String formatDateTimeForUser(LocalDateTime dateTime) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy, HH:mm", Locale.forLanguageTag("ru"));
         return dateTime.format(formatter);
@@ -1224,48 +1276,42 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 .getDisplayName(TextStyle.FULL, Locale.forLanguageTag("ru"));
         return dayOfWeek + ", " + date.format(DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale.forLanguageTag("ru")));
     }
-    private void saveDateTimeToDatabase(String chatId, LocalDateTime bookingDateTime) {
-        Long userId = getUserId(chatId);
-
-        // Используем OrderService для сохранения данных
-        orderService.createOrder(userId, null, bookingDateTime, "Бронирование времени через бота");
-    }
-    private void askForBookingDateTime(String chatId) {
-        String description = """
-        🤵 *Позвольте мне предложить вам выбрать дату и время для вашего бронирования.*\n\n
-        ⏳ *Ваш стол будет забронирован на 2 часа.*\n
-        🕰 *Режим работы заведения*:\n
-        • *Понедельник – Четверг:* с 11:45 до 02:00\n
-        • *Пятница и Суббота:* с 11:45 до 04:00\n
-        • *Воскресенье:* с 11:45 до 02:00\n\n
-        📌 *Особенные моменты недели*:\n
-        • *SUNDAY WINE* — Воскресенье: скидка *20%* на все вина в бутылках. 🍷\n
-        • *Музыкальные выходные* — Пятница и Суббота: *диджей-сеты с 21:00.* 🎵\n
-        • *Daily Menu* — Будние дни с 11:45 до 16:00: Средиземноморское меню и вино дня. 🍽\n\n
-        👉 *Пожалуйста, выберите дату для вашего бронирования.*\n
-        """;
-
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(description);
-        message.enableMarkdown(true); // Включение форматирования Markdown
-
-        // Добавление кнопки для перехода к выбору даты
-        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
-        InlineKeyboardButton selectDateButton = new InlineKeyboardButton();
-        selectDateButton.setText("📅 Выбрать дату");
-        selectDateButton.setCallbackData("select_date");
-
-        keyboardMarkup.setKeyboard(List.of(List.of(selectDateButton)));
-        message.setReplyMarkup(keyboardMarkup);
-
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-            sendMessage(chatId, "Произошла ошибка при отображении информации. Попробуйте позже.");
-        }
-    }
+//    private void askForBookingDateTime(String chatId) {
+//        String description = """
+//        🤵 *Позвольте мне предложить вам выбрать дату и время для вашего бронирования.*\n\n
+//        ⏳ *Ваш стол будет забронирован на 2 часа.*\n
+//        🕰 *Режим работы заведения*:\n
+//        • *Понедельник – Четверг:* с 11:45 до 02:00\n
+//        • *Пятница и Суббота:* с 11:45 до 04:00\n
+//        • *Воскресенье:* с 11:45 до 02:00\n\n
+//        📌 *Особенные моменты недели*:\n
+//        • *SUNDAY WINE* — Воскресенье: скидка *20%* на все вина в бутылках. 🍷\n
+//        • *Музыкальные выходные* — Пятница и Суббота: *диджей-сеты с 21:00.* 🎵\n
+//        • *Daily Menu* — Будние дни с 11:45 до 16:00: Средиземноморское меню и вино дня. 🍽\n\n
+//        👉 *Пожалуйста, выберите дату для вашего бронирования.*\n
+//        """;
+//
+//        SendMessage message = new SendMessage();
+//        message.setChatId(chatId);
+//        message.setText(description);
+//        message.enableMarkdown(true); // Включение форматирования Markdown
+//
+//        // Добавление кнопки для перехода к выбору даты
+//        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+//        InlineKeyboardButton selectDateButton = new InlineKeyboardButton();
+//        selectDateButton.setText("📅 Выбрать дату");
+//        selectDateButton.setCallbackData("select_date");
+//
+//        keyboardMarkup.setKeyboard(List.of(List.of(selectDateButton)));
+//        message.setReplyMarkup(keyboardMarkup);
+//
+//        try {
+//            execute(message);
+//        } catch (TelegramApiException e) {
+//            e.printStackTrace();
+//            sendMessage(chatId, "Произошла ошибка при отображении информации. Попробуйте позже.");
+//        }
+//    }
     private void sendZonePlan(String chatId) {
         File planFile = new File("/Users/michaelwelly/Desktop/AERISMENU/AERIS PLAN.pdf");
         if (planFile.exists()) {
@@ -1283,51 +1329,111 @@ public class TelegramBotService extends TelegramLongPollingBot {
         // Задаем следующий шаг — выбор зоны
         askForZoneSelection(chatId);
     }
+    private UUID getOrCreateOrderId(String chatId) {
+        try {
+            UUID userId = getUserId(chatId); // Получаем UUID пользователя
+
+            // Проверяем, есть ли уже заказ в статусе PENDING
+            return orderRepository.findByUserId(userId).stream()
+                    .filter(order -> "PENDING".equals(order.getStatus()))
+                    .map(Order::getId)
+                    .findFirst()
+                    .orElseGet(() -> {
+                        // Генерируем новый UUID для заказа
+                        UUID orderId = UUID.randomUUID();
+
+                        // Создаем новый заказ без даты и времени
+                        Order newOrder = new Order();
+                        newOrder.setId(orderId); // Устанавливаем сгенерированный UUID
+                        newOrder.setUser(userRepository.findById(userId).orElseThrow(() ->
+                                new EntityNotFoundException("User not found with ID: " + userId)));
+                        newOrder.setStatus("PENDING");
+                        newOrder.setComment("Бронирование через Telegram Bot");
+
+                        // Сохраняем заказ в базе данных
+                        Order savedOrder = orderRepository.save(newOrder);
+                        log.info("Создан новый заказ с ID: {}", savedOrder.getId());
+
+                        return savedOrder.getId();
+                    });
+        } catch (Exception e) {
+            log.error("Ошибка при создании или получении заказа: {}", e.getMessage(), e);
+            throw new IllegalStateException("Ошибка при создании или получении заказа: " + e.getMessage());
+        }
+    }
 
     private void confirmOrder(String chatId, Order order) {
-        // Отправляем подтверждение пользователю
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(String.format("Ваш заказ подтвержден!\n\nДата и время: %s\nЗона: %s\nСтол: %s\n\nСпасибо за бронирование!",
-                order.getBookingDateTime().toString(),
-                order.getTable().getZone(),
-                order.getTable().getTableNumber()));
-
-        // Отправляем картинку с благодарностью
-        File confirmationImage = new File("/path/to/confirmation-image.jpg");
-        if (confirmationImage.exists()) {
-            SendPhoto photo = new SendPhoto();
-            photo.setChatId(chatId);
-            photo.setPhoto(new org.telegram.telegrambots.meta.api.objects.InputFile(confirmationImage));
-            try {
-                execute(photo);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-        }
-
         try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
+            // Формируем текст подтверждения
+            String confirmationText = String.format(
+                    "Ваш заказ подтвержден!\n\nДата: %s\nВремя: %s\nЗона: %s\nСтол: %s\n\nСпасибо за бронирование!",
+                    order.getBookingDate(),
+                    order.getBookingTime(),
+                    order.getTable().getZone(),
+                    order.getTable().getTableNumber()
+            );
 
-        // Уведомляем хостесс
-        notifyHostess(order);
+            // Отправляем подтверждение пользователю
+            SendMessage message = new SendMessage();
+            message.setChatId(chatId);
+            message.setText(confirmationText);
+            execute(message);
+
+            // Отправляем картинку с благодарностью (если доступна)
+            File confirmationImage = new File("/path/to/confirmation-image.jpg");
+            if (confirmationImage.exists()) {
+                SendPhoto photo = new SendPhoto();
+                photo.setChatId(chatId);
+                photo.setPhoto(new org.telegram.telegrambots.meta.api.objects.InputFile(confirmationImage));
+                execute(photo);
+            } else {
+                log.warn("Изображение подтверждения не найдено по пути: /path/to/confirmation-image.jpg");
+            }
+
+            // Уведомляем хостесс о новом подтвержденном заказе
+            notifyHostess(order);
+
+            // Логируем успешное завершение
+            log.info("Заказ {} подтвержден для пользователя {}", order.getId(), chatId);
+        } catch (TelegramApiException e) {
+            // Логируем ошибку при отправке сообщения
+            log.error("Ошибка при отправке подтверждения заказа пользователю {}: {}", chatId, e.getMessage(), e);
+            sendMessage(chatId, "Ошибка при отправке подтверждения. Попробуйте снова.");
+        } catch (Exception e) {
+            // Логируем общую ошибку
+            log.error("Ошибка при подтверждении заказа для пользователя {}: {}", chatId, e.getMessage(), e);
+            sendMessage(chatId, "Ошибка при подтверждении заказа. Попробуйте снова.");
+        }
     }
     private void notifyHostess(Order order) {
-        String hostessChatId = "HOSTESS_CHAT_ID";
-        SendMessage message = new SendMessage();
-        message.setChatId(hostessChatId);
-        message.setText(String.format("Новый заказ:\n\nДата и время: %s\nЗона: %s\nСтол: %s\nКомментарий: %s\n\nПодтвердить или отклонить.",
-                order.getBookingDateTime().toString(),
-                order.getTable().getZone(),
-                order.getTable().getTableNumber(),
-                order.getComment()));
         try {
+            // ID чата хостесс
+            String hostessChatId = "HOSTESS_CHAT_ID";
+
+            // Формируем текст уведомления
+            String notificationText = String.format(
+                    "Новый заказ:\n\nДата: %s\nВремя: %s\nЗона: %s\nСтол: %s\nКомментарий: %s\n\nПожалуйста, подтвердите или отклоните заказ.",
+                    order.getBookingDate(),
+                    order.getBookingTime(),
+                    order.getTable().getZone(),
+                    order.getTable().getTableNumber(),
+                    order.getComment() != null ? order.getComment() : "Комментарий отсутствует"
+            );
+
+            // Отправляем сообщение хостесс
+            SendMessage message = new SendMessage();
+            message.setChatId(hostessChatId);
+            message.setText(notificationText);
             execute(message);
+
+            // Логируем успешное уведомление
+            log.info("Хостесс уведомлена о новом заказе: {}", order.getId());
         } catch (TelegramApiException e) {
-            e.printStackTrace();
+            // Логируем ошибку при отправке уведомления
+            log.error("Ошибка при отправке уведомления хостесс о заказе {}: {}", order.getId(), e.getMessage(), e);
+        } catch (Exception e) {
+            // Логируем общую ошибку
+            log.error("Ошибка при уведомлении хостесс о заказе {}: {}", order.getId(), e.getMessage(), e);
         }
     }
     private void askForZoneSelection(String chatId) {
@@ -1340,32 +1446,79 @@ public class TelegramBotService extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
-    private void createOrder(String chatId, Long userId, Long tableId, LocalDateTime bookingDateTime, String comment) {
+    private void createOrder(String chatId, UUID userId, UUID tableId, LocalDate bookingDate, LocalTime bookingTime, String comment) {
         try {
-            Order order = orderService.createOrder(userId, tableId, bookingDateTime, comment);
+            // Создаем заказ через OrderService
+            Order order = orderService.createOrder(userId, tableId, bookingDate, bookingTime, comment);
+
+            // Подтверждаем заказ и отправляем сообщение пользователю
             confirmOrder(chatId, order);
+
+            log.info("Заказ успешно создан: Пользователь {} забронировал стол {} на дату {} и время {}.",
+                    userId, tableId, bookingDate, bookingTime);
         } catch (EntityNotFoundException e) {
-            sendMessage(chatId, "Ошибка: Пользователь или стол не найдены. Проверьте введенные данные.");
+            log.error("Ошибка: Пользователь {} или стол {} не найдены.", userId, tableId, e);
+            sendMessage(chatId, "❌ Ошибка: Пользователь или стол не найдены. Проверьте введенные данные.");
         } catch (IllegalStateException e) {
-            sendMessage(chatId, "Извините, выбранный стол уже занят на это время. Попробуйте другой.");
+            log.warn("Попытка создать заказ на занятый стол: Пользователь {}, стол {}, дата {}, время {}.",
+                    userId, tableId, bookingDate, bookingTime);
+            sendMessage(chatId, "❌ Извините, выбранный стол уже занят на это время. Попробуйте другой.");
+        } catch (Exception e) {
+            log.error("Произошла ошибка при создании заказа для пользователя {}: {}", userId, e.getMessage(), e);
+            sendMessage(chatId, "❌ Произошла ошибка при создании заказа. Попробуйте снова.");
         }
     }
-    private void checkTableAvailability(String chatId, Long tableId, LocalDateTime bookingDateTime) {
-        if (orderService.isTableAvailable(tableId, bookingDateTime)) {
-            sendMessage(chatId, "Стол доступен для бронирования.");
-        } else {
-            sendMessage(chatId, "К сожалению, стол занят. Попробуйте выбрать другое время или стол.");
+    private void checkTableAvailability(String chatId, UUID tableId, LocalDate bookingDate, LocalTime bookingTime) {
+        try {
+            if (orderService.isTableAvailable(tableId, bookingDate, bookingTime)) {
+                sendMessage(chatId, "✅ Стол доступен для бронирования.");
+            } else {
+                sendMessage(chatId, "❌ К сожалению, стол занят. Попробуйте выбрать другое время или стол.");
+            }
+        } catch (Exception e) {
+            log.error("Ошибка при проверке доступности стола {}: {}", tableId, e.getMessage(), e);
+            sendMessage(chatId, "❌ Произошла ошибка при проверке доступности стола. Попробуйте снова.");
         }
     }
-    private void confirmOrderByHostess(String chatId, Long orderId) {
-        Order order = orderService.updateOrderStatus(orderId, "CONFIRMED");
-        sendMessage(chatId, "Заказ подтвержден! Пользователь уведомлен.");
-        notifyUserAboutConfirmation(order);
+    private void confirmOrderByHostess(String chatId, UUID orderId) {
+        try {
+            // Обновляем статус заказа на "CONFIRMED"
+            Order order = orderService.updateOrderStatus(orderId, "CONFIRMED");
+
+            // Уведомляем администратора
+            sendMessage(chatId, "✅ Заказ подтвержден! Пользователь уведомлен.");
+
+            // Уведомляем пользователя
+            notifyUserAboutConfirmation(order);
+
+            log.info("Заказ {} подтвержден хостесс.", orderId);
+        } catch (EntityNotFoundException e) {
+            log.error("Ошибка: Заказ с ID {} не найден.", orderId, e);
+            sendMessage(chatId, "❌ Ошибка: Заказ с таким ID не найден.");
+        } catch (Exception e) {
+            log.error("Ошибка при подтверждении заказа {}: {}", orderId, e.getMessage(), e);
+            sendMessage(chatId, "❌ Произошла ошибка при подтверждении заказа. Попробуйте снова.");
+        }
     }
-    private void rejectOrderByHostess(String chatId, Long orderId, String reason) {
-        Order order = orderService.updateOrderStatus(orderId, "REJECTED");
-        sendMessage(chatId, "Заказ отклонен! Пользователь уведомлен.");
-        notifyUserAboutRejection(order, reason);
+    private void rejectOrderByHostess(String chatId, UUID orderId, String reason) {
+        try {
+            // Обновляем статус заказа на "REJECTED"
+            Order order = orderService.updateOrderStatus(orderId, "REJECTED");
+
+            // Уведомляем администратора
+            sendMessage(chatId, "❌ Заказ отклонен! Пользователь уведомлен.");
+
+            // Уведомляем пользователя о причине отклонения
+            notifyUserAboutRejection(order, reason);
+
+            log.info("Заказ {} отклонен хостесс по причине: {}", orderId, reason);
+        } catch (EntityNotFoundException e) {
+            log.error("Ошибка: Заказ с ID {} не найден.", orderId, e);
+            sendMessage(chatId, "❌ Ошибка: Заказ с таким ID не найден.");
+        } catch (Exception e) {
+            log.error("Ошибка при отклонении заказа {}: {}", orderId, e.getMessage(), e);
+            sendMessage(chatId, "❌ Произошла ошибка при отклонении заказа. Попробуйте снова.");
+        }
     }
     private void notifyUserAboutConfirmation(Order order) {
         String userChatId = order.getUser().getTelegramId();
@@ -1374,23 +1527,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private void notifyUserAboutRejection(Order order, String reason) {
         String userChatId = order.getUser().getTelegramId();
         sendMessage(userChatId, "К сожалению, ваш заказ отклонен.\nПричина: " + reason);
-    }
-    private void handleDateTimeInput(String chatId, String userInput) {
-        try {
-            LocalDateTime bookingDateTime = LocalDateTime.parse(userInput, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-
-            if (!isWithinWorkingHours(bookingDateTime)) {
-                sendMessage(chatId, "Ресторан работает только с 11:00 до 23:00. Попробуйте выбрать другое время.");
-                return;
-            }
-
-            // Сохраняем выбранное время в текущий заказ пользователя (например, в Redis)
-            cacheOrderInfo(chatId, "bookingDateTime", bookingDateTime.toString());
-
-            sendZoneSelection(chatId);
-        } catch (DateTimeParseException e) {
-            sendMessage(chatId, "Неверный формат даты. Укажите дату и время в формате 'yyyy-MM-dd HH:mm'.");
-        }
     }
     private void sendZoneSelection(String chatId) {
         // Отправляем PDF с планом зала
@@ -1435,7 +1571,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
-    private void confirmOrder(String chatId, Long tableId, LocalDateTime bookingDateTime) {
+    private void confirmOrder(String chatId, UUID tableId, LocalDateTime bookingDateTime) {
         RestaurantTable table = restaurantTableService.getTableById(tableId);
 
         sendMessage(chatId, "Ваш заказ:\n" +
@@ -1488,7 +1624,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
-
     private void cacheOrderInfo(String chatId, String key, String value) {
         // Пример использования RedisTemplate
         String redisKey = "order:" + chatId;
@@ -1499,53 +1634,50 @@ public class TelegramBotService extends TelegramLongPollingBot {
         Object value = redisTemplate.opsForHash().get(redisKey, key);
         return value != null ? value.toString() : null;
     }
-    private Long getCachedTableId(String chatId) {
+    private UUID getCachedTableId(String chatId) {
         String value = getCachedValue(chatId, "tableId");
-        return value != null ? Long.parseLong(value) : null;
+        return value != null ? UUID.fromString(value) : null;
     }
     private LocalDateTime getCachedBookingDateTime(String chatId) {
         String value = getCachedValue(chatId, "bookingDateTime");
         return value != null ? LocalDateTime.parse(value) : null;
     }
-    private Long getUserId(String chatId) {
+    private UUID getUserId(String chatId) {
         User user = userRepository.findByTelegramId(chatId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with Telegram ID: " + chatId));
         return user.getId();
     }
-    private void handleTableSelection(String chatId, String tableSelection) {
-        Long tableId = parseTableIdFromInput(tableSelection);
-        if (tableId == null) {
-            sendMessage(chatId, "Неверный выбор столика. Пожалуйста, выберите из доступных опций.");
-            return;
-        }
-
-        cacheOrderInfo(chatId, "tableId", tableId.toString());
-        LocalDateTime bookingDateTime = getCachedBookingDateTime(chatId);
-        sendMessage(chatId, "Вы выбрали столик №" + tableId + ". Пожалуйста, подтвердите ваше бронирование.");
-        confirmOrder(chatId, tableId, bookingDateTime);
-    }
-    private Long parseTableIdFromInput(String input) {
+    private UUID parseTableIdFromInput(String tableSelection) {
         try {
-            if (input.startsWith("Столик №")) {
-                String numberStr = input.replace("Столик №", "").trim();
-                return Long.parseLong(numberStr);
+            return UUID.fromString(tableSelection); // Преобразование строки в UUID
+        } catch (IllegalArgumentException e) {
+            return null; // Возвращает null, если входные данные некорректны
+        }
+    }
+    private void finalizeOrder(String chatId, UUID userId, UUID tableId, LocalDate bookingDate, LocalTime bookingTime, String comment) {
+        try {
+            // Проверяем, что все данные собраны
+            if (tableId == null || bookingDate == null || bookingTime == null) {
+                throw new IllegalStateException("Не все параметры заказа выбраны. Проверьте дату, время и стол.");
             }
-        } catch (NumberFormatException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    private void finalizeOrder(String chatId) {
-        Long userId = getUserId(chatId);
-        Long tableId = getCachedTableId(chatId);
-        LocalDateTime bookingDateTime = getCachedBookingDateTime(chatId);
 
-        try {
-            Order order = orderService.createOrder(userId, tableId, bookingDateTime, "Бронирование через Telegram Bot");
-            sendMessage(chatId, "Ваш заказ подтверждён! Спасибо за использование нашего сервиса.");
+            // Создаем заказ
+            Order order = orderService.createOrder(userId, tableId, bookingDate, bookingTime, comment);
+
+            // Подтверждаем заказ пользователю
+            sendMessage(chatId, "✅ Ваш заказ успешно создан и подтвержден!\n" +
+                    "Дата: " + bookingDate + "\n" +
+                    "Время: " + bookingTime + "\n" +
+                    "Стол: №" + order.getTable().getTableNumber() +
+                    " (Зона: " + order.getTable().getZone() + ")");
+
+            // Уведомляем хостесс
+            notifyHostess(order);
+        } catch (IllegalStateException e) {
+            sendMessage(chatId, "Ошибка: " + e.getMessage());
         } catch (Exception e) {
-            e.printStackTrace();
-            sendMessage(chatId, "К сожалению, произошла ошибка при создании вашего заказа. Попробуйте снова.");
+            sendMessage(chatId, "Произошла ошибка при создании заказа. Попробуйте снова.");
+            log.error("Ошибка при создании заказа: {}", e.getMessage(), e);
         }
     }
     private void sendTableOptions(String chatId, List<RestaurantTable> tables) {
@@ -1577,21 +1709,5 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private boolean isWithinWorkingHours(LocalDateTime dateTime) {
         LocalTime time = dateTime.toLocalTime();
         return !time.isBefore(LocalTime.of(11, 0)) && !time.isAfter(LocalTime.of(23, 0));
-    }
-    private void handleBookingTimeSelection(String chatId, String inputDateTime) {
-        try {
-            LocalDateTime bookingDateTime = LocalDateTime.parse(inputDateTime);
-
-            if (!isWithinWorkingHours(bookingDateTime)) {
-                sendMessage(chatId, "К сожалению, вы выбрали время вне рабочего режима ресторана (11:00 - 23:00). Попробуйте снова.");
-                return;
-            }
-
-            cacheOrderInfo(chatId, "bookingDateTime", bookingDateTime.toString());
-            sendMessage(chatId, "Вы выбрали: " + bookingDateTime.toLocalDate() + " " + bookingDateTime.toLocalTime() + ". Теперь выберите зону.");
-            sendZoneOptions(chatId); // Отправляем пользователю доступные зоны
-        } catch (DateTimeParseException e) {
-            sendMessage(chatId, "Неверный формат даты и времени. Введите в формате: yyyy-MM-ddTHH:mm.");
-        }
     }
 }

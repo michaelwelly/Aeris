@@ -5,10 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Date;
+import java.util.UUID;
 
 @Entity
 @Table(name = "orders")
@@ -18,8 +21,13 @@ import java.util.Date;
 public class Order {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(
+            name = "UUID",
+            strategy = "org.hibernate.id.UUIDGenerator"
+    )
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id; // Изменение типа ID на UUID
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
@@ -29,8 +37,11 @@ public class Order {
     @JoinColumn(name = "table_id", nullable = false)
     private RestaurantTable table;
 
-    @Column(name = "booking_date_time", nullable = false)
-    private LocalDateTime bookingDateTime;
+    @Column(name = "booking_date", nullable = true)
+    private LocalDate bookingDate; // Отдельное поле для даты
+
+    @Column(name = "booking_time", nullable = true)
+    private LocalTime bookingTime; // Отдельное поле для времени
 
     @Column(name = "status", nullable = false)
     private String status; // Например, PENDING, CONFIRMED, CANCELLED

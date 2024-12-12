@@ -16,8 +16,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
               - column:
@@ -71,8 +70,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
               - column:
@@ -96,6 +94,11 @@ databaseChangeLog:
                   defaultValueBoolean: true
                   constraints:
                     nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+                  constraints:
+                    nullable: true
 
   - changeSet:
       id: 3
@@ -113,29 +116,33 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
               - column:
                   name: user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_orders_users
                     references: users(id)
               - column:
                   name: table_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_orders_tables
                     references: tables(id)
               - column:
-                  name: booking_date_time
-                  type: TIMESTAMP
+                  name: booking_date
+                  type: DATE
                   constraints:
-                    nullable: false
+                    nullable: true
+              - column:
+                  name: booking_time
+                  type: TIME
+                  constraints:
+                    nullable: true
               - column:
                   name: status
                   type: VARCHAR(20)
@@ -154,6 +161,7 @@ databaseChangeLog:
                   name: updated_at
                   type: TIMESTAMP
                   defaultValueComputed: CURRENT_TIMESTAMP
+
   - changeSet:
       id: 4
       author: aeris-dev
@@ -170,13 +178,12 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
               - column:
                   name: table_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_slot_availability_tables
@@ -199,7 +206,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: order_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: true
                     foreignKeyName: fk_slot_availability_orders
