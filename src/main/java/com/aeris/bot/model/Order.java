@@ -34,7 +34,7 @@ public class Order {
     private User user;
 
     @ManyToOne
-    @JoinColumn(name = "table_id", nullable = false)
+    @JoinColumn(name = "table_id", nullable = true)
     private RestaurantTable table;
 
     @Column(name = "booking_date", nullable = true)

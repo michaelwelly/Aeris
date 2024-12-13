@@ -1,8 +1,6 @@
 package com.aeris.bot.service;
 
-import com.aeris.bot.model.Order;
-import com.aeris.bot.model.RestaurantTable;
-import com.aeris.bot.model.User;
+import com.aeris.bot.model.*;
 import com.aeris.bot.repository.OrderRepository;
 import com.aeris.bot.repository.RestaurantTableRepository;
 import com.aeris.bot.repository.UserRepository;
@@ -14,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -45,7 +44,7 @@ public class OrderService {
             throw new IllegalStateException("Booking date and time cannot be null");
         }
 
-        if (!slotAvailabilityService.isSlotAvailable(tableId, bookingDate, bookingTime)) {
+        if (!slotAvailabilityService.isSlotAvailable(bookingDate, bookingTime)) {
             throw new IllegalStateException("Slot is not available");
         }
 
@@ -88,7 +87,7 @@ public class OrderService {
         Order order = getOrderById(orderId);
         order.setStatus("CANCELLED");
         orderRepository.save(order);
-        slotAvailabilityService.releaseSlot(order);
+        releaseResources(order);
     }
     /**
      * Удалить заказ.
@@ -109,6 +108,24 @@ public class OrderService {
     public boolean isTableAvailable(UUID tableId, LocalDate bookingDate, LocalTime bookingTime) {
         List<Order> orders = orderRepository.findByTableIdAndBookingDateAndTime(tableId, bookingDate, bookingTime);
         return orders.isEmpty();
+    }/**
+
+     /**
+     * Получает текущий активный заказ пользователя.
+     *
+     * @param userId ID пользователя.
+     * @return Активный заказ пользователя.
+     * @throws EntityNotFoundException если пользователь не найден.
+     * @throws IllegalStateException если активный заказ отсутствует.
+     */
+    public Order getActiveOrderByUser(UUID userId) {
+        // Получаем пользователя
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + userId + " не найден."));
+
+        // Ищем заказ со статусом "PENDING"
+        return orderRepository.findByUserAndStatus(user, "PENDING")
+                .orElseThrow(() -> new IllegalStateException("Активный заказ для пользователя с ID " + userId + " не найден."));
     }
     /**
      * Получает заказ по ID.
@@ -138,9 +155,6 @@ public class OrderService {
         User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
         return orderRepository.findByUser(user);
     }
-    /**
-     * Получает дату бронирования заказа.
-     */
     public LocalDate getOrderDate(UUID orderId) {
         Order order = getOrderById(orderId); // Получаем заказ по ID
         LocalDate bookingDate = order.getBookingDate(); // Предполагается, что в модели Order есть поле bookingDate (тип LocalDate)
@@ -173,7 +187,18 @@ public class OrderService {
 
         return table.getZone(); // Возвращаем зону стола
     }
+    public UUID getOrderTableId(UUID orderId) {
+        // Получаем заказ по ID
+        Order order = getOrderById(orderId);
 
+        // Проверяем, связан ли заказ со столом
+        if (order.getTable() == null) {
+            throw new IllegalStateException("Стол не установлен для заказа с ID: " + orderId);
+        }
+
+        // Возвращаем ID стола
+        return order.getTable().getId();
+    }
     /**
      * Обновить заказ.
      */
@@ -222,7 +247,7 @@ public class OrderService {
         Order order = getOrderById(orderId);
 
         // Проверяем, доступен ли слот
-        if (!slotAvailabilityService.isSlotAvailable(order.getTable().getId(), bookingDate, bookingTime)) {
+        if (!slotAvailabilityService.isSlotAvailable(bookingDate, bookingTime)) {
             throw new IllegalStateException("Слот недоступен для выбранной даты и времени: "
                     + bookingDate + " " + bookingTime);
         }
@@ -272,4 +297,45 @@ public class OrderService {
             throw new IllegalStateException("Произошла ошибка при обновлении статуса заказа.");
         }
     }
+    /**
+     * Освобождает все зарезервированные ресурсы для заказа.
+     */
+    public void releaseResources(Order order) {
+        // Освобождаем слот
+        slotAvailabilityService.releaseSlot(order);
+
+        // Дополнительная логика для освобождения ресурсов, если потребуется
+        log.info("Все ресурсы освобождены для заказа ID: {}", order.getId());
+    }
+    /**
+     * Создает пустой заказ для пользователя.
+     *
+     * @param userId ID пользователя.
+     * @return Созданный заказ.
+     */
+    public Order createEmptyOrder(UUID userId) {
+        // Проверяем наличие пользователя
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + userId + " не найден."));
+
+        // Создаем пустой заказ
+        Order order = new Order();
+        order.setUser(user);
+        order.setStatus("PENDING"); // Статус "PENDING" указывает, что заказ в процессе заполнения
+        order.setBookingDate(null); // Дата бронирования пока не установлена
+        order.setBookingTime(null); // Время бронирования пока не установлено
+        order.setTable(null); // Стол не выбран
+        order.setComment(null); // Комментарий не задан
+
+        // Сохраняем заказ в базе данных
+        Order savedOrder = orderRepository.save(order);
+        log.info("Создан новый пустой заказ с ID {} для пользователя {}", savedOrder.getId(), userId);
+
+        return savedOrder;
+    }
+    public List<SlotAvailability> getAvailableSlotsForDate(LocalDate date) {
+        // Используем метод findByDateAndStatus через сервис
+        return slotAvailabilityService.getAvailableSlots(date, SlotStatus.AVAILABLE);
+    }
+
 }

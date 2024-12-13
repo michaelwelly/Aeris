@@ -32,7 +32,6 @@ public class SlotAvailabilityService {
         return slotAvailabilityRepository.findById(slotId)
                 .orElseThrow(() -> new EntityNotFoundException("Slot not found with ID: " + slotId));
     }
-
     /**
      * Генерация слотов на заданную дату с фиксированной ценой.
      */
@@ -56,23 +55,18 @@ public class SlotAvailabilityService {
             }
         }
     }
-
     /**
      * Проверка доступности слота.
      */
-    public boolean isSlotAvailable(UUID tableId, LocalDate date, LocalTime timeSlot) {
-        return slotAvailabilityRepository.findByTableIdAndDateAndTimeSlot(tableId, date, timeSlot)
-                .map(slot -> slot.getStatus() == SlotStatus.AVAILABLE)
-                .orElse(false);
+    public boolean isSlotAvailable(LocalDate date, LocalTime timeSlot) {
+        return slotAvailabilityRepository.findByDateAndTimeSlot(date, timeSlot).isEmpty();
     }
-
     /**
      * Получение доступных слотов на дату.
      */
-    public List<SlotAvailability> getAvailableSlots(LocalDate date) {
-        return slotAvailabilityRepository.findByDateAndStatus(date, SlotStatus.AVAILABLE.name());
+    public List<SlotAvailability> getAvailableSlots(LocalDate date, SlotStatus status) {
+        return slotAvailabilityRepository.findByDateAndStatus(date, status);
     }
-
     /**
      * Резервирование слота по ID.
      */
@@ -85,7 +79,6 @@ public class SlotAvailabilityService {
         slot.setStatus(SlotStatus.RESERVED);
         slotAvailabilityRepository.save(slot);
     }
-
     /**
      * Резервирование слота по заказу.
      */
@@ -100,7 +93,6 @@ public class SlotAvailabilityService {
         slot.setOrder(order);
         slotAvailabilityRepository.save(slot);
     }
-
     /**
      * Освобождение слота.
      */
@@ -115,12 +107,14 @@ public class SlotAvailabilityService {
             }
         }
     }
-
     /**
      * Получение расписания на неделю.
      */
     public List<SlotAvailability> getWeeklySchedule(LocalDate startDate) {
         LocalDate endDate = startDate.plusDays(7);
         return slotAvailabilityRepository.findByDateBetween(startDate, endDate);
+    }
+    public List<SlotAvailability> getBusySlots(LocalDate date) {
+        return slotAvailabilityRepository.findByDate(date);
     }
 }

@@ -5,6 +5,7 @@ import com.aeris.bot.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class UserService {
@@ -17,12 +18,10 @@ public class UserService {
 
     // Метод для регистрации нового пользователя
     public User registerUser(String firstName, String lastName, String telegramId, String username, String languageCode) {
-        // Получаем Optional и проверяем наличие пользователя
         if (userRepository.findByTelegramId(telegramId).isPresent()) {
             throw new RuntimeException("User already exists!");
         }
 
-        // Создаем нового пользователя
         User user = new User();
         user.setFirstName(firstName);
         user.setLastName(lastName);
@@ -30,7 +29,6 @@ public class UserService {
         user.setUsername(username);
         user.setLanguageCode(languageCode);
 
-        // Сохраняем пользователя в базу данных
         User savedUser = userRepository.save(user);
         System.out.println("User successfully registered: " + savedUser);
         return savedUser;
@@ -68,5 +66,12 @@ public class UserService {
     public User findUserByTelegramId(String telegramId) {
         return userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new RuntimeException("User with telegramId " + telegramId + " does not exist!"));
+    }
+
+    // Метод для получения уникального идентификатора пользователя
+    public UUID getUserId(String chatId) {
+        User user = userRepository.findByTelegramId(chatId)
+                .orElseThrow(() -> new RuntimeException("User with telegramId " + chatId + " does not exist!"));
+        return user.getId(); // Предполагается, что поле `id` у User — это UUID.
     }
 }

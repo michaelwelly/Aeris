@@ -1,6 +1,7 @@
 package com.aeris.bot.controller;
 
 import com.aeris.bot.model.Order;
+import com.aeris.bot.model.SlotAvailability;
 import com.aeris.bot.service.OrderService;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
@@ -118,5 +119,11 @@ public class OrderController {
         String message = isAvailable ? "Стол доступен для бронирования." : "Стол занят.";
         log.info("Доступность стола {} на {} {}: {}", tableId, date, time, message);
         return ResponseEntity.ok(message);
+    }
+    @GetMapping("/slots")
+    public ResponseEntity<List<SlotAvailability>> getAvailableSlots(@RequestParam("date") String date) {
+        LocalDate localDate = LocalDate.parse(date);
+        List<SlotAvailability> availableSlots = orderService.getAvailableSlotsForDate(localDate);
+        return ResponseEntity.ok(availableSlots);
     }
 }

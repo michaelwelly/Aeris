@@ -130,7 +130,7 @@ databaseChangeLog:
                   name: table_id
                   type: UUID
                   constraints:
-                    nullable: false
+                    nullable: true
                     foreignKeyName: fk_orders_tables
                     references: tables(id)
               - column:
