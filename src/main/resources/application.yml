@@ -2,7 +2,7 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml  # Путь к вашему changelog
   datasource:
-    url: jdbc:postgresql://localhost:5432/aerisdb
+    url: jdbc:postgresql://db:5432/aerisdb
     username: postgres
     password: password # Переменная окружения для пароля
   jpa:
