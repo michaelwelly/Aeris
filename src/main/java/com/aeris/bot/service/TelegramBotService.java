@@ -38,35 +38,45 @@ import java.util.stream.Collectors;
 @Service
 public class TelegramBotService extends TelegramLongPollingBot {
 
-
     @Value("${bot.username}")
     private String botUsername;
 
     @Value("${bot.token}")
     private String botToken;
 
+    private static final Logger log = LoggerFactory.getLogger(TelegramBotService.class);
+
     private final UserService userService;
     private final OrderService orderService;
     private final RestaurantTableService restaurantTableService;
     private final SlotAvailabilityService slotAvailabilityService;
     private final OrderRepository orderRepository;
-    private UserRepository userRepository;
-
-    private static final Logger log = LoggerFactory.getLogger(TelegramBotService.class);
+    private final UserRepository userRepository;
+    // Пути к изображениям
+    private final Map<String, String> imagePaths;
 
     @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
-    @Autowired
-    private UserOrderCache userOrderCache;
-
-    public TelegramBotService(UserService userService, OrderService orderService, RestaurantTableService restaurantTableService, SlotAvailabilityService slotAvailabilityService, OrderRepository orderRepository, UserRepository userRepository) {
+    public TelegramBotService(UserService userService,
+                              OrderService orderService,
+                              RestaurantTableService restaurantTableService,
+                              SlotAvailabilityService slotAvailabilityService,
+                              OrderRepository orderRepository,
+                              UserRepository userRepository,
+                              Map<String, String> imagePaths) {
         this.userService = userService;
         this.orderService = orderService;
         this.restaurantTableService = restaurantTableService;
         this.slotAvailabilityService = slotAvailabilityService;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.imagePaths = imagePaths;
     }
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    @Autowired
+    private UserOrderCache userOrderCache;
+
 
     @Override
     public String getBotUsername() {
@@ -80,120 +90,87 @@ public class TelegramBotService extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         String chatId = null;
 
-        // Проверка текстовых сообщений
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            chatId = update.getMessage().getChatId().toString();
-            String messageText = update.getMessage().getText().toLowerCase();
+        try {
+            // Проверка текстовых сообщений
+            if (update.hasMessage() && update.getMessage().hasText()) {
+                chatId = update.getMessage().getChatId().toString();
+                String messageText = update.getMessage().getText().toLowerCase();
 
-            switch (messageText) {
-                case "/start" -> handleStartCommand(chatId, update.getMessage().getFrom());
-                case "главное меню" -> sendMainMenu(chatId, "Вы вернулись в главное меню.");
-                case "бронирование" -> {
-                    UUID userId = userService.getUserId(chatId);
-                    UUID orderId = orderService.createEmptyOrder(userId).getId();
-                    userOrderCache.saveOrderId(chatId, orderId);
-
-                    sendBookingMenu(chatId);
-                }
-                case "выбрать дату" -> {
-                    sendDateSelection(chatId);
-                }
-                case "confirm_date" -> {
-                    UUID userId = userService.getUserId(chatId);
-                    LocalDate bookingDate = orderService.getOrderDate(userId);
-
-                    if (bookingDate != null) {
-                        sendConfirmationForDate(chatId, bookingDate.toString()); // Подтверждаем выбор даты
-                    } else {
-                        sendMessage(chatId, "Сначала выберите дату из предложенного списка.");
-                    }
-                }
-                case "выбрать время" -> {
-                    UUID userId = userService.getUserId(chatId);
-                    LocalDate bookingDate = orderService.getOrderDate(userId);
-
-                    sendTimeSelection(chatId,bookingDate.toString());
-                    if (bookingDate != null) {
-                        sendTimeSelection(chatId, bookingDate.toString());
-                    } else {
-                        sendMessage(chatId, "Сначала выберите дату.");
-                    }
-                }
-                case "бронирование зоны" -> sendZoneSelection(chatId); // Выбор зоны
-                case "бронирование стола" -> {
-                    UUID userId = userService.getUserId(chatId);
-                    String zone = orderService.getOrderZone(userId);
-                    if (zone != null) {
-                        sendTableSelection(chatId, zone); // Выбор стола
-                    } else {
-                        sendMessage(chatId, "Сначала выберите зону.");
-                    }
-                }
-                case "подтверждение" -> confirmBooking(chatId); // Подтверждение бронирования
-                case "отменить бронирование" -> {
-                    try {
-                        // Получаем ID пользователя
+                switch (messageText) {
+                    case "/start" -> handleStartCommand(chatId, update.getMessage().getFrom());
+                    case "главное меню" -> sendMainMenu(chatId, "Вы вернулись в главное меню.");
+                    case "бронирование" -> {
                         UUID userId = userService.getUserId(chatId);
+                        UUID orderId = orderService.createEmptyOrder(userId).getId();
+                        userOrderCache.saveOrderId(chatId, orderId);
 
-                        // Получаем активный заказ пользователя
-                        Order activeOrder = orderService.getActiveOrderByUser(userId);
-
-                        // Отменяем заказ
-                        cancelBooking(chatId, activeOrder.getId());
-                    } catch (IllegalStateException e) {
-                        // Если у пользователя нет активного заказа
-                        sendMessage(chatId, "❌ У вас нет активного бронирования для отмены.");
-                    } catch (Exception e) {
-                        // Обработка других ошибок
-                        sendMessage(chatId, "❌ Произошла ошибка при отмене бронирования. Попробуйте снова.");
-                        log.error("Ошибка при отмене бронирования: {}", e.getMessage(), e);
+                        sendBookingMenu(chatId);
                     }
-                }
-                case "меню" -> sendMenuMain(chatId);
-                case "адрес" -> sendAddress(chatId);
-                case "интерьер" -> sendInteriorMenu(chatId);
-                case "афиша" -> sendEventsMenu(chatId);
-                default -> sendMessage(chatId, "Извините, я не понял эту команду. Вы можете вернуться в главное меню.");
-            }
-        }
-        // Проверка callback-запросов
-        else if (update.hasCallbackQuery()) {
-            chatId = update.getCallbackQuery().getMessage().getChatId().toString();
-            String callbackData = update.getCallbackQuery().getData();
+                    case "выбрать дату" -> sendDateSelection(chatId);
+                    case "выбрать время" -> {
+                        UUID userId = userService.getUserId(chatId);
+                        LocalDate bookingDate = orderService.getOrderDate(userId);
 
-            if (callbackData.startsWith("select_date:")) {
-                UUID userId = userService.getUserId(chatId);
-                handleDateSelection(chatId, callbackData);
-            } else if (callbackData.startsWith("select_time:")) {
-                UUID userId = userService.getUserId(chatId);
-                sendTimeSelection(chatId, callbackData);
-                handleTimeSelection(chatId, callbackData, userId);
-            } else if (callbackData.startsWith("select_zone:")) {
-                UUID userId = userService.getUserId(chatId);
-                handleZoneSelection(chatId, callbackData, userId);
-            } else if (callbackData.startsWith("select_table:")) {
-                UUID userId = userService.getUserId(chatId);
-                handleTableSelection(chatId, callbackData, userId);
-            } else {
+                        if (bookingDate != null) {
+                            sendTimeSelection(chatId, bookingDate.toString());
+                        } else {
+                            sendMessage(chatId, "Сначала выберите дату.");
+                        }
+                    }
+                    case "подтверждение" -> confirmBooking(chatId);
+                    case "отменить бронирование" -> {
+                        try {
+                            UUID userId = userService.getUserId(chatId);
+                            Order activeOrder = orderService.getActiveOrderByUser(userId);
+                            cancelBooking(chatId, activeOrder.getId());
+                        } catch (IllegalStateException e) {
+                            sendMessage(chatId, "❌ У вас нет активного бронирования для отмены.");
+                        } catch (Exception e) {
+                            sendMessage(chatId, "❌ Произошла ошибка при отмене бронирования. Попробуйте снова.");
+                            log.error("Ошибка при отмене бронирования: {}", e.getMessage(), e);
+                        }
+                    }
+                    case "меню" -> sendMenuMain(chatId);
+                    case "бар" -> sendBarMenu(chatId);
+                    case "ежедневное меню" -> sendDailyMenu(chatId);
+                    case "элементы" -> sendElementsMenu(chatId);
+                    case "кухня" -> sendKitchenMenu(chatId);
+                    case "винный зал" -> sendWineRoomMenu(chatId);
+                    case "интерьер" -> sendInteriorMenu(chatId);
+                    case "афиша" -> sendEventsMenu(chatId);
+                    case "адрес" -> sendAddress(chatId);
+                    default -> sendMessage(chatId, "Извините, я не понял эту команду. Вы можете вернуться в главное меню.");
+                }
+            }
+            // Проверка callback-запросов
+            else if (update.hasCallbackQuery()) {
+                chatId = update.getCallbackQuery().getMessage().getChatId().toString();
+                String callbackData = update.getCallbackQuery().getData();
+
                 handleCallbackQuery(chatId, callbackData);
             }
-        }
-        // Обработка мультимедиа и других типов сообщений
-        else if (update.hasMessage()) {
-            chatId = update.getMessage().getChatId().toString();
+            // Обработка мультимедиа и других типов сообщений
+            else if (update.hasMessage()) {
+                chatId = update.getMessage().getChatId().toString();
 
-            if (update.getMessage().hasPhoto()) {
-                handlePhoto(chatId, update.getMessage().getPhoto());
-            } else if (update.getMessage().hasLocation()) {
-                handleLocation(chatId, update.getMessage().getLocation());
-            } else if (update.getMessage().hasDocument()) {
-                handleDocument(chatId, update.getMessage().getDocument());
-            } else if (update.getMessage().hasVoice()) {
-                handleVoice(chatId, update.getMessage().getVoice());
-            } else if (update.getMessage().hasVideo()) {
-                handleVideo(chatId, update.getMessage().getVideo());
-            } else {
-                handleUnsupportedMessage(chatId, update.getMessage());
+                if (update.getMessage().hasPhoto()) {
+                    handlePhoto(chatId, update.getMessage().getPhoto());
+                } else if (update.getMessage().hasLocation()) {
+                    handleLocation(chatId, update.getMessage().getLocation());
+                } else if (update.getMessage().hasDocument()) {
+                    handleDocument(chatId, update.getMessage().getDocument());
+                } else if (update.getMessage().hasVoice()) {
+                    handleVoice(chatId, update.getMessage().getVoice());
+                } else if (update.getMessage().hasVideo()) {
+                    handleVideo(chatId, update.getMessage().getVideo());
+                } else {
+                    handleUnsupportedMessage(chatId, update.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Ошибка при обработке сообщения: {}", e.getMessage(), e);
+            if (chatId != null) {
+                sendMessage(chatId, "❌ Произошла ошибка. Попробуйте снова.");
             }
         }
 
@@ -247,6 +224,54 @@ public class TelegramBotService extends TelegramLongPollingBot {
         sendMessage(chatId, "Извините, я пока не могу обработать этот тип сообщений.");
     }
 
+    private void sendImage(String chatId, String keyword, String caption) {
+        String path = imagePaths.getOrDefault(keyword, imagePaths.get("default"));
+        File imageFile = new File(path);
+
+        SendPhoto photo = new SendPhoto();
+        photo.setChatId(chatId);
+        photo.setPhoto(new org.telegram.telegrambots.meta.api.objects.InputFile(imageFile));
+        photo.setCaption(caption);
+
+        try {
+            execute(photo);
+        } catch (Exception e) {
+            log.error("Ошибка отправки изображения: {}", e.getMessage());
+        }
+    }
+    private void sendMessage(String chatId, String text) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(text);
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+    private void sendImageWithCaption(String chatId, String imageKey, String caption) {
+        String path = imagePaths.getOrDefault(imageKey, imagePaths.get("default"));
+        File imageFile = new File(path);
+
+        if (!imageFile.exists()) {
+            log.error("Файл изображения не найден по пути: {}", path);
+            sendMessage(chatId, "❌ Изображение временно недоступно. Попробуйте позже.");
+            return;
+        }
+
+        SendPhoto photo = new SendPhoto();
+        photo.setChatId(chatId);
+        photo.setPhoto(new org.telegram.telegrambots.meta.api.objects.InputFile(imageFile));
+        photo.setCaption(caption);
+
+        try {
+            execute(photo);
+        } catch (Exception e) {
+            log.error("Ошибка при отправке изображения: {}", e.getMessage());
+            sendMessage(chatId, "❌ Произошла ошибка при отправке изображения.");
+        }
+    }
+
     private void handleStartCommand(String chatId, org.telegram.telegrambots.meta.api.objects.User user) {
         try {
             // Сохраняем пользователя
@@ -266,8 +291,21 @@ public class TelegramBotService extends TelegramLongPollingBot {
         Добро пожаловать в главное меню:
         """;
 
-            // Отправляем главное меню с приветствием
-            sendMainMenu(chatId, welcomeMessage);
+            // Путь к изображению
+            File imageFile = new File("/Users/michaelwelly/Aeris-Dvoretsky/avatarStart.jpeg");
+
+            if (imageFile.exists() && imageFile.isFile()) {
+                // Отправляем изображение с подписью
+                SendPhoto photo = new SendPhoto();
+                photo.setChatId(chatId);
+                photo.setPhoto(new org.telegram.telegrambots.meta.api.objects.InputFile(imageFile));
+                photo.setCaption(welcomeMessage);
+
+                execute(photo);
+            } else {
+                // Отправляем только текст, если файл отсутствует
+                sendMessage(chatId, welcomeMessage);
+            }
         } catch (RuntimeException e) {
             // Если пользователь уже зарегистрирован
             String alreadyRegisteredMessage = """
@@ -280,7 +318,28 @@ public class TelegramBotService extends TelegramLongPollingBot {
         Как и всегда, я готов выполнить любую вашу просьбу. Просто выберите нужный пункт меню.
         """;
 
-            sendMainMenu(chatId, alreadyRegisteredMessage);
+            // Путь к изображению conform.jpeg
+            File imageFile = new File("/Users/michaelwelly/Aeris-Dvoretsky/conform.jpeg");
+
+            if (imageFile.exists() && imageFile.isFile()) {
+                // Отправляем изображение с подписью
+                SendPhoto photo = new SendPhoto();
+                photo.setChatId(chatId);
+                photo.setPhoto(new org.telegram.telegrambots.meta.api.objects.InputFile(imageFile));
+                photo.setCaption(alreadyRegisteredMessage);
+
+                try {
+                    execute(photo);
+                } catch (TelegramApiException ex) {
+                    ex.printStackTrace();
+                }
+            } else {
+                // Отправляем только текст, если файл отсутствует
+                sendMessage(chatId, alreadyRegisteredMessage);
+            }
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+            sendMessage(chatId, "❌ Произошла ошибка при отправке изображения или сообщения.");
         }
     }
 
@@ -707,16 +766,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             sendErrorFileNotFound(chatId, "Афиша (фото)");
         }
     }
-    private void sendMessage(String chatId, String text) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(text);
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-    }
+
     private void sendAddress(String chatId) {
         // Текст с форматированием
         String addressText = "📍 *Уважаемый посетитель,*\n\n" +
@@ -1218,7 +1268,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
             throw new IllegalStateException("Ошибка при создании или получении заказа: " + e.getMessage());
         }
     }
-
     private void confirmOrder(String chatId, Order order) {
         try {
             // Формируем текст подтверждения

@@ -1,19 +1,31 @@
 package com.aeris.bot.config;
 
-import com.aeris.bot.service.TelegramBotService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 public class TelegramBotConfig {
 
     @Bean
-    public TelegramBotsApi telegramBotsApi(TelegramBotService telegramBotService) throws TelegramApiException {
-        TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-        botsApi.registerBot(telegramBotService);
-        return botsApi;
+    public Map<String, String> imagePaths() {
+        String basePath = "/Users/michaelwelly/Aeris-Dvoretsky/";
+        Map<String, String> paths = new HashMap<>();
+        paths.put("avatar start", basePath + "avatarStart.jpeg");
+        paths.put("avatar telegram", basePath + "avatarTelegram.jpeg");
+        paths.put("conform", basePath + "conform.jpeg");
+        paths.put("date", basePath + "date.jpeg");
+        paths.put("default", basePath + "default.jpeg");
+        paths.put("events", basePath + "events.jpeg");
+        paths.put("interview", basePath + "interview.jpeg");
+        paths.put("main menu", basePath + "mainMenu.jpeg");
+        paths.put("menu", basePath + "menu.jpeg");
+        paths.put("navigation", basePath + "navigation.jpeg");
+        paths.put("table", basePath + "table.jpeg");
+        paths.put("time", basePath + "time.jpeg");
+        paths.put("zone", basePath + "zone.jpeg");
+        return paths;
     }
 }
