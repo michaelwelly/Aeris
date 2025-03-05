@@ -2,35 +2,55 @@ services:
 
   app:
     build: .
-    #image: task-management-system-1.0.0
     restart: always
-    container_name: task-management-system-container
+    container_name: aeris-dvoretsky-container
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      DATABASE_USERNAME: ${DATABASE_USERNAME}
-      JWT_SECRET_PHRASE: ${JWT_SECRET_PHRASE}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-      CORS_ALLOWED_METHODS: ${CORS_ALLOWED_METHODS}
+      TELEGRAM_BOT_TOKEN: 7663104943:AAHY3xrVMMcEBJWeeoQ3YefmvchTK1sPmIU
+      TELEGRAM_BOT_USERNAME: aeris_dvorestsky_bot
+
+      OPENAI_API_KEY: mocked-api-key
+      OPENAI_API_ENDPOINT: https://api.openai.com/v1/chat/completions
+
+      DATABASE_URL: jdbc:postgresql://tasks-db:5432/aerisdb
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: password
+
+      POSTGRES_DB: aerisdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://tasks-db:5432/aerisdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+
     ports:
       - "${APPLICATION_PORT}:8080"
     depends_on:
       - tasks-db
-
+      - redis
 
   tasks-db:
     image: postgres:14
     restart: always
-    container_name: tasks-db
+    container_name: aeris-db
     ports:
       - "${POSTGRES_PORT}:5432"
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: aerisdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
     volumes:
-      - ./tasks-system-db-volume:/var/lib/postgresql/data
+      - ./aeris-db-volume:/var/lib/postgresql/data
 
+  redis:
+    image: redis:latest
+    restart: always
+    container_name: aeris-redis
+    ports:
+      - "6379:6379"
 
 volumes:
-  tasks-system-db-volume:
+  aeris-db-volume:
